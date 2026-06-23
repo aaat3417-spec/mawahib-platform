@@ -1,0 +1,2 @@
+"""Statistics package namespace."""
+
