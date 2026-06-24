@@ -17,7 +17,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.url.path in {"/health", "/docs", "/openapi.json"}:
             return await call_next(request)
 
-        client = request.client.host if request.client else "unknown"
+        forwarded_for = request.headers.get("x-forwarded-for", "")
+        client = forwarded_for.split(",", 1)[0].strip() or (request.client.host if request.client else "unknown")
         now = monotonic()
         bucket = self.requests[client]
         while bucket and now - bucket[0] > settings.RATE_LIMIT_WINDOW_SECONDS:
@@ -31,4 +32,3 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         bucket.append(now)
         return await call_next(request)
-

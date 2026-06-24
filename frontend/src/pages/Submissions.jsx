@@ -43,6 +43,20 @@ export default function Submissions() {
     }
   }
 
+  async function openFile(item) {
+    if (!item.file_url) {
+      return;
+    }
+    try {
+      const { data } = await api.get(item.file_url, { responseType: "blob" });
+      const url = URL.createObjectURL(data);
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      setMessage(apiErrorMessage(err));
+    }
+  }
+
   return (
     <>
       <PageHeader title="Submissions" eyebrow="Review status and feedback" />
@@ -69,7 +83,11 @@ export default function Submissions() {
                     <div className="space-y-1">
                       {item.link_url && <a className="block text-teal-700 dark:text-teal-300" href={item.link_url} target="_blank" rel="noreferrer">Link</a>}
                       {item.github_url && <a className="block text-teal-700 dark:text-teal-300" href={item.github_url} target="_blank" rel="noreferrer">GitHub</a>}
-                      {item.file_path && <a className="block text-teal-700 dark:text-teal-300" href={`/${item.file_path}`} target="_blank" rel="noreferrer">File</a>}
+                      {item.file_url && (
+                        <button className="block text-left text-teal-700 dark:text-teal-300" type="button" onClick={() => openFile(item)}>
+                          File
+                        </button>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3">

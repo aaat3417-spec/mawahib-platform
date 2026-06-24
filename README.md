@@ -1,6 +1,6 @@
 # Mawahib Community Platform
 
-A production-ready community platform for gifted students. It includes task management, submissions, review workflows, points, badges, teams, leaderboards, announcements, notifications, dashboards, profile portfolios, admin statistics, PostgreSQL migrations, Docker Compose, Nginx, JWT auth, role permissions, upload validation, rate limiting, and local file storage.
+A production-ready community platform for gifted students. It includes task management, submissions, review workflows, points, badges, teams, leaderboards, announcements, notifications, dashboards, profile portfolios, admin statistics, PostgreSQL migrations, Docker Compose, Nginx, JWT auth, role permissions, protected submission uploads, upload validation, rate limiting, and local file storage.
 
 ## Stack
 
@@ -8,7 +8,7 @@ A production-ready community platform for gifted students. It includes task mana
 - Backend: FastAPI, SQLAlchemy, Pydantic, JWT authentication
 - Database: PostgreSQL
 - Deployment: Docker Compose and Nginx
-- Storage: local `uploads/` directory
+- Storage: local `uploads/` directory for protected submission files
 
 ## Structure
 
@@ -71,7 +71,7 @@ npm install
 npm run dev
 ```
 
-Vite proxies `/api` and `/uploads` to `http://localhost:8000`.
+Vite proxies `/api` to `http://localhost:8000`.
 
 ## Render Deployment
 
@@ -98,9 +98,12 @@ The backend can run with SQLite using `DATABASE_URL=sqlite:///./mawahib.db`; SQL
 - Bcrypt password hashing
 - JWT bearer authentication
 - Role-based access guards
-- Upload validation for PDF and image files
+- Protected submission downloads through authenticated API routes
+- Upload validation for PNG, JPG/JPEG, PDF, TXT, Markdown, and ZIP files
 - File signature checks for declared upload types
+- ZIP path traversal and dangerous script/executable checks
 - Configurable upload size limit
+- Security headers for API responses
 - In-process rate limiting
 - Trusted Host middleware
 - Production checks for unsafe secrets and wildcard hosts/origins

@@ -20,8 +20,8 @@ class TaskBase(BaseModel):
     @classmethod
     def attachments_are_http_urls(cls, value: list[str]) -> list[str]:
         for url in value:
-            if not url.startswith(("http://", "https://", "/uploads/")):
-                raise ValueError("Task attachments must be HTTP(S) URLs or /uploads/ paths.")
+            if not url.startswith(("http://", "https://")):
+                raise ValueError("Task attachments must be HTTP(S) URLs.")
         return value
 
 
@@ -46,8 +46,8 @@ class TaskUpdate(BaseModel):
         if value is None:
             return value
         for url in value:
-            if not url.startswith(("http://", "https://", "/uploads/")):
-                raise ValueError("Task attachments must be HTTP(S) URLs or /uploads/ paths.")
+            if not url.startswith(("http://", "https://")):
+                raise ValueError("Task attachments must be HTTP(S) URLs.")
         return value
 
 

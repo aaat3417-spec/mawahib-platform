@@ -18,17 +18,22 @@ const blankTask = {
   attachments: ""
 };
 const blankAnnouncement = { title: "", body: "", is_pinned: false, scheduled_for: "", expires_at: "" };
+const blankPointAward = { user_id: "", amount: 20, description: "" };
+const blankBadgeAward = { user_id: "", badge_code: "" };
 
 export default function AdminPanel() {
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [badges, setBadges] = useState([]);
   const [statistics, setStatistics] = useState(null);
   const [userForm, setUserForm] = useState(blankUser);
   const [taskForm, setTaskForm] = useState(blankTask);
   const [announcementForm, setAnnouncementForm] = useState(blankAnnouncement);
   const [teamForm, setTeamForm] = useState({ name: "", description: "" });
+  const [pointAward, setPointAward] = useState(blankPointAward);
+  const [badgeAward, setBadgeAward] = useState(blankBadgeAward);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -40,6 +45,7 @@ export default function AdminPanel() {
     api.get("/teams").then(({ data }) => setTeams(data));
     api.get("/tasks").then(({ data }) => setTasks(data));
     api.get("/announcements").then(({ data }) => setAnnouncements(data));
+    api.get("/badges").then(({ data }) => setBadges(data));
     api.get("/statistics/overview").then(({ data }) => setStatistics(data));
   }
 
@@ -186,6 +192,36 @@ export default function AdminPanel() {
     }
   }
 
+  async function awardPoints(event) {
+    event.preventDefault();
+    try {
+      await api.post(`/users/${pointAward.user_id}/points`, {
+        amount: Number(pointAward.amount),
+        description: pointAward.description || "Administrative points adjustment"
+      });
+      setPointAward(blankPointAward);
+      setMessage("Points awarded.");
+      load();
+    } catch (err) {
+      setMessage(apiErrorMessage(err));
+    }
+  }
+
+  async function awardBadge(event) {
+    event.preventDefault();
+    try {
+      await api.post("/badges/award", {
+        user_id: Number(badgeAward.user_id),
+        badge_code: badgeAward.badge_code
+      });
+      setBadgeAward(blankBadgeAward);
+      setMessage("Badge awarded.");
+      load();
+    } catch (err) {
+      setMessage(apiErrorMessage(err));
+    }
+  }
+
   return (
     <>
       <PageHeader title="Admin Panel" eyebrow="Users, teams, tasks, announcements, and statistics" />
@@ -255,6 +291,26 @@ export default function AdminPanel() {
             <input className="input" type="datetime-local" value={announcementForm.scheduled_for} onChange={(event) => setAnnouncementForm({ ...announcementForm, scheduled_for: event.target.value })} />
             <input className="input" type="datetime-local" value={announcementForm.expires_at} onChange={(event) => setAnnouncementForm({ ...announcementForm, expires_at: event.target.value })} />
           </div>
+        </AdminForm>
+
+        <AdminForm title="Award points" onSubmit={awardPoints}>
+          <select className="input" value={pointAward.user_id} onChange={(event) => setPointAward({ ...pointAward, user_id: event.target.value })} required>
+            <option value="">Choose member</option>
+            {users.map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
+          </select>
+          <input className="input" type="number" min="-10000" max="10000" value={pointAward.amount} onChange={(event) => setPointAward({ ...pointAward, amount: event.target.value })} required />
+          <input className="input" placeholder="Reason" value={pointAward.description} onChange={(event) => setPointAward({ ...pointAward, description: event.target.value })} />
+        </AdminForm>
+
+        <AdminForm title="Award badge" onSubmit={awardBadge}>
+          <select className="input" value={badgeAward.user_id} onChange={(event) => setBadgeAward({ ...badgeAward, user_id: event.target.value })} required>
+            <option value="">Choose member</option>
+            {users.map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
+          </select>
+          <select className="input" value={badgeAward.badge_code} onChange={(event) => setBadgeAward({ ...badgeAward, badge_code: event.target.value })} required>
+            <option value="">Choose badge</option>
+            {badges.map((badge) => <option key={badge.id} value={badge.code}>{badge.name}</option>)}
+          </select>
         </AdminForm>
       </section>
 

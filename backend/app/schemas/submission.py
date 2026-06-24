@@ -20,6 +20,7 @@ class SubmissionRead(BaseModel):
     github_url: str | None
     notes: str
     file_path: str | None
+    file_url: str | None = None
     original_filename: str | None
     status: SubmissionStatus
     feedback: str
@@ -37,4 +38,3 @@ class SubmissionDetailRead(SubmissionRead):
     student_name: str
     team_id: int | None = None
     team_name: str | None = None
-

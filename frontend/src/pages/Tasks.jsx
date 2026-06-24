@@ -134,7 +134,7 @@ export default function Tasks() {
               <input className="input" placeholder="Project or article link" value={form.link_url} onChange={(event) => setForm({ ...form, link_url: event.target.value })} />
               <input className="input" placeholder="GitHub repository" value={form.github_url} onChange={(event) => setForm({ ...form, github_url: event.target.value })} />
               <textarea className="input min-h-28" placeholder="Notes for reviewer" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
-              <input className="input" type="file" accept="application/pdf,image/png,image/jpeg,image/webp,image/heic,image/heif" onChange={(event) => setForm({ ...form, file: event.target.files?.[0] || null })} />
+              <input className="input" type="file" accept=".png,.jpg,.jpeg,.pdf,.txt,.md,.zip,application/pdf,image/png,image/jpeg,text/plain,text/markdown,application/zip" onChange={(event) => setForm({ ...form, file: event.target.files?.[0] || null })} />
             </div>
             {modalMessage && (
               <p className="mt-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">

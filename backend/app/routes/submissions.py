@@ -1,6 +1,7 @@
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.time import utc_now
@@ -12,7 +13,7 @@ from app.routes.deps import get_current_user, get_db, require_leader_or_admin
 from app.schemas.submission import SubmissionDetailRead, SubmissionReview
 from app.services.notifications import create_notification
 from app.services.points import apply_submission_points, clear_submission_points
-from app.services.storage import save_submission_upload
+from app.services.storage import resolve_upload_path, save_submission_upload
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
 
@@ -133,11 +134,27 @@ def review_submission(
     return _submission_detail(submission)
 
 
+@router.get("/{submission_id}/file")
+def download_submission_file(
+    submission_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> FileResponse:
+    submission = db.get(Submission, submission_id)
+    if not submission or not submission.file_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found.")
+    _ensure_can_view_submission(current_user, submission)
+    file_path = resolve_upload_path(submission.file_path)
+    return FileResponse(file_path, filename=submission.original_filename or file_path.name)
+
+
 def _submission_detail(submission: Submission) -> dict:
     return {
         **SubmissionDetailRead.model_validate(
             {
                 **submission.__dict__,
+                "file_path": None,
+                "file_url": f"/submissions/{submission.id}/file" if submission.file_path else None,
                 "task_title": submission.task.title,
                 "task_points": submission.task.points,
                 "student_name": submission.student.full_name,
@@ -146,6 +163,16 @@ def _submission_detail(submission: Submission) -> dict:
             }
         ).model_dump()
     }
+
+
+def _ensure_can_view_submission(user: User, submission: Submission) -> None:
+    if user.role in {Role.OWNER, Role.ADMIN}:
+        return
+    if user.role == Role.TEAM_LEADER and submission.student.team_id == user.team_id:
+        return
+    if submission.student_id == user.id:
+        return
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found.")
 
 
 def _normalize_optional_url(value: str | None, field_name: str) -> str | None:

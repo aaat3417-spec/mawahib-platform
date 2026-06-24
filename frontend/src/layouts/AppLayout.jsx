@@ -30,6 +30,15 @@ export default function AppLayout() {
 
   const unreadCount = notifications.filter((item) => !item.read_at).length;
 
+  async function markAllRead() {
+    const unread = notifications.filter((item) => !item.read_at);
+    if (unread.length === 0) {
+      return;
+    }
+    setNotifications((items) => items.map((item) => (item.read_at ? item : { ...item, read_at: new Date().toISOString() })));
+    await Promise.allSettled(unread.map((item) => api.patch(`/notifications/${item.id}/read`)));
+  }
+
   return (
     <div className="min-h-screen bg-transparent pb-20 text-slate-900 dark:text-slate-100 lg:pb-0">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 border-r border-slate-200/80 bg-white/90 p-5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 lg:block">
@@ -86,9 +95,14 @@ export default function AppLayout() {
               <p className="font-semibold">Welcome, {user?.full_name?.split(" ")[0] || "member"}</p>
             </div>
             <div className="flex items-center gap-2 overflow-x-auto">
-              <span className="hidden rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300 sm:inline-flex">
+              <button
+                className="hidden rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 sm:inline-flex"
+                type="button"
+                onClick={markAllRead}
+                title="Mark notifications as read"
+              >
                 {unreadCount} unread
-              </span>
+              </button>
               <button className="btn-secondary" onClick={() => setDark((value) => !value)}>
                 {dark ? "Light" : "Dark"}
               </button>

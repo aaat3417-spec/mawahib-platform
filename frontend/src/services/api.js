@@ -34,6 +34,9 @@ api.interceptors.response.use(
 );
 
 export function apiErrorMessage(error) {
+  if (!error.response) {
+    return "Cannot reach the server. Check your connection and try again.";
+  }
   const detail = error.response?.data?.detail;
   if (Array.isArray(detail)) {
     return detail.map((item) => item.msg).join(", ");

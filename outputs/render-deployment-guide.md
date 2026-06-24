@@ -37,6 +37,10 @@ ENVIRONMENT=development
 
 Production note: replace `SECRET_KEY` with a long random value before real use.
 
+SQLite on Render free plan is suitable only for testing. Render can restart or move instances, and SQLite is not ideal for durable multi-user production data. For a real launch, use managed PostgreSQL and run Alembic migrations instead of SQLite `create_all`.
+
+Do not keep the default owner password after first login. Create a strong owner password and rotate `SECRET_KEY` before real student data is entered.
+
 ### Backend Checks
 
 ```text
@@ -105,3 +109,26 @@ ChangeMe123!
 ```
 
 Expected result: login succeeds without Network Error, CORS error, Invalid host header, or missing database table errors.
+
+## Uploads
+
+Submission files are stored under the backend `uploads/` directory but are not served as public static files. They are downloaded through authenticated API routes, so students can access only their own files and reviewers/admins can access only files allowed by their role.
+
+Allowed submission upload types:
+
+```text
+png, jpg, jpeg, pdf, txt, md, zip
+```
+
+Blocked examples:
+
+```text
+exe, sh, bat, js, html, php
+```
+
+## Troubleshooting
+
+- `sh: cannot open start_render.sh`: redeploy the latest Git commit and confirm Root Directory is `backend`.
+- `Not Found` after refreshing `/tasks` or `/leaderboard`: add the Static Site rewrite `/* -> /index.html`.
+- `Network Error` on login: confirm frontend `VITE_API_URL=https://mawahib-platform.onrender.com`, backend CORS includes `https://mawahib-platform-1.onrender.com`, then clear build cache and redeploy frontend.
+- `no such table`: confirm backend `DATABASE_URL=sqlite:///./mawahib.db` and Start Command is `sh start_render.sh`.
