@@ -75,6 +75,20 @@ VITE_API_URL=https://mawahib-platform.onrender.com
 
 This value is required so the deployed Vite app calls the deployed FastAPI service instead of using local `/api`.
 
+### Frontend React Router Rewrite
+
+For an existing manually-created Render Static Site, add this rule in the frontend service:
+
+```text
+Settings -> Redirects/Rewrites -> Add Rule
+Source: /*
+Destination: /index.html
+Action: Rewrite
+```
+
+This is required for direct refreshes on routes such as `/leaderboard`, `/tasks`, `/profile`, and `/admin`.
+Without it, Render serves `Not Found` because the React app owns those routes in the browser.
+
 ## Login Test
 
 Open:

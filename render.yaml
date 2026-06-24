@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: mawahib-platform
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: sh start_render.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: DATABASE_URL
+        value: sqlite:///./mawahib.db
+      - key: SECRET_KEY
+        generateValue: true
+      - key: INITIAL_OWNER_EMAIL
+        value: owner@mawahib.com
+      - key: INITIAL_OWNER_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        value: '["http://localhost:5173","http://localhost:8080","https://mawahib-platform-1.onrender.com"]'
+      - key: ALLOWED_HOSTS
+        value: localhost,127.0.0.1,mawahib-platform.onrender.com,mawahib-platform-1.onrender.com
+
+  - type: web
+    name: mawahib-platform-1
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://mawahib-platform.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

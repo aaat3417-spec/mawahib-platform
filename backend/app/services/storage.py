@@ -10,6 +10,8 @@ ALLOWED_UPLOAD_TYPES = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
     "image/webp": ".webp",
+    "image/heic": ".heic",
+    "image/heif": ".heif",
 }
 
 
@@ -68,4 +70,14 @@ def _matches_declared_type(content_type: str | None, chunk: bytes) -> bool:
         return chunk.startswith(b"\x89PNG\r\n\x1a\n")
     if content_type == "image/webp":
         return len(chunk) >= 12 and chunk[:4] == b"RIFF" and chunk[8:12] == b"WEBP"
+    if content_type in {"image/heic", "image/heif"}:
+        return len(chunk) >= 12 and chunk[4:8] == b"ftyp" and chunk[8:12] in {
+            b"heic",
+            b"heix",
+            b"hevc",
+            b"hevx",
+            b"heif",
+            b"mif1",
+            b"msf1",
+        }
     return False
