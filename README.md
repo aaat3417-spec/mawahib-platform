@@ -73,6 +73,11 @@ npm run dev
 
 Vite proxies `/api` and `/uploads` to `http://localhost:8000`.
 
+## Render Deployment
+
+For the free Render test deployment, use the dedicated guide at `outputs/render-deployment-guide.md`.
+The backend can run with SQLite using `DATABASE_URL=sqlite:///./mawahib.db`; SQLite tables are created automatically on startup, so Render should use `sh start_render.sh` instead of running Alembic migrations.
+
 ## Roles and Permissions
 
 - Owner: full platform control, including owner/admin accounts.

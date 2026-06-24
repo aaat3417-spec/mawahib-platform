@@ -1,4 +1,5 @@
 from functools import lru_cache
+import json
 from pathlib import Path
 from typing import Annotated
 
@@ -14,8 +15,18 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(default="change-me-in-production", min_length=16)
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
-    CORS_ORIGINS: Annotated[list[str], NoDecode] = ["http://localhost:5173", "http://localhost:8080"]
-    ALLOWED_HOSTS: Annotated[list[str], NoDecode] = ["localhost", "127.0.0.1", "0.0.0.0"]
+    CORS_ORIGINS: Annotated[list[str], NoDecode] = [
+        "http://localhost:5173",
+        "http://localhost:8080",
+        "https://mawahib-platform-1.onrender.com",
+    ]
+    ALLOWED_HOSTS: Annotated[list[str], NoDecode] = [
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "mawahib-platform.onrender.com",
+        "mawahib-platform-1.onrender.com",
+    ]
     DOCS_ENABLED: bool = True
     UPLOAD_DIR: Path = Path("uploads")
     MAX_UPLOAD_MB: int = 15
@@ -37,16 +48,12 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: str | list[str]) -> list[str]:
-        if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
-        return value
+        return parse_env_list(value)
 
     @field_validator("ALLOWED_HOSTS", mode="before")
     @classmethod
     def parse_allowed_hosts(cls, value: str | list[str]) -> list[str]:
-        if isinstance(value, str):
-            return [host.strip() for host in value.split(",") if host.strip()]
-        return value
+        return parse_env_list(value)
 
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":
@@ -65,6 +72,31 @@ class Settings(BaseSettings):
     @property
     def max_upload_bytes(self) -> int:
         return self.MAX_UPLOAD_MB * 1024 * 1024
+
+    @property
+    def is_sqlite(self) -> bool:
+        return self.DATABASE_URL.startswith("sqlite")
+
+    @property
+    def should_create_tables_on_startup(self) -> bool:
+        return self.AUTO_CREATE_TABLES or self.is_sqlite
+
+
+def parse_env_list(value: str | list[str]) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if not isinstance(value, str):
+        return value
+
+    stripped = value.strip()
+    if not stripped:
+        return []
+    if stripped.startswith("["):
+        parsed = json.loads(stripped)
+        if not isinstance(parsed, list):
+            raise ValueError("Expected a JSON list.")
+        return [str(item).strip() for item in parsed if str(item).strip()]
+    return [item.strip() for item in stripped.split(",") if item.strip()]
 
 
 @lru_cache

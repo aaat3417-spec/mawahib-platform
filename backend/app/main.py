@@ -7,11 +7,9 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.db.base import Base
-from app.db.session import SessionLocal, engine
+from app.db.init_db import initialize_database
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.routes import announcements, auth, badges, leaderboard, notifications, statistics, submissions, tasks, teams, users
-from app.services.bootstrap import seed_defaults
 from app.services.storage import ensure_upload_directories
 
 
@@ -19,13 +17,7 @@ from app.services.storage import ensure_upload_directories
 async def lifespan(_: FastAPI):
     logging.basicConfig(level=settings.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     ensure_upload_directories()
-    if settings.AUTO_CREATE_TABLES:
-        Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    try:
-        seed_defaults(db)
-    finally:
-        db.close()
+    initialize_database()
     yield
 
 
@@ -67,3 +59,8 @@ app.include_router(badges.router, prefix=settings.API_PREFIX)
 @app.get("/health", tags=["health"])
 def health() -> dict:
     return {"status": "ok", "service": settings.APP_NAME}
+
+
+@app.get("/", tags=["health"])
+def root() -> dict:
+    return {"name": settings.APP_NAME, "status": "ok", "docs": docs_url}
