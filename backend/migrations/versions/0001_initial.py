@@ -55,12 +55,6 @@ notification_type_enum = sa.Enum(
 
 
 def upgrade() -> None:
-    task_category_enum.create(op.get_bind(), checkfirst=True)
-    task_difficulty_enum.create(op.get_bind(), checkfirst=True)
-    submission_status_enum.create(op.get_bind(), checkfirst=True)
-    point_reason_enum.create(op.get_bind(), checkfirst=True)
-    badge_code_enum.create(op.get_bind(), checkfirst=True)
-    notification_type_enum.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "teams",
