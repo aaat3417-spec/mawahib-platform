@@ -55,7 +55,6 @@ notification_type_enum = sa.Enum(
 
 
 def upgrade() -> None:
-    role_enum.create(op.get_bind(), checkfirst=True)
     task_category_enum.create(op.get_bind(), checkfirst=True)
     task_difficulty_enum.create(op.get_bind(), checkfirst=True)
     submission_status_enum.create(op.get_bind(), checkfirst=True)
