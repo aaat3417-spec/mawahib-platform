@@ -2,19 +2,21 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth.jsx";
+import { useLanguage } from "../i18n/LanguageContext.jsx";
 import { api } from "../services/api";
 
 const navItems = [
-  ["Dashboard", "/", "D"],
-  ["Tasks", "/tasks", "T"],
-  ["Submissions", "/submissions", "S"],
-  ["Leaderboard", "/leaderboard", "L"],
-  ["Announcements", "/announcements", "A"],
-  ["Profile", "/profile", "P"]
+  ["navDashboard", "/", "D"],
+  ["navTasks", "/tasks", "T"],
+  ["navSubmissions", "/submissions", "S"],
+  ["navLeaderboard", "/leaderboard", "L"],
+  ["navAnnouncements", "/announcements", "A"],
+  ["navProfile", "/profile", "P"]
 ];
 
 export default function AppLayout() {
   const { user, logout, isAdmin } = useAuth();
+  const { isArabic, t, toggleLanguage } = useLanguage();
   const [dark, setDark] = useState(() => localStorage.getItem("mawahib_theme") === "dark");
   const [notifications, setNotifications] = useState([]);
   const location = useLocation();
@@ -29,7 +31,7 @@ export default function AppLayout() {
   }, [location.pathname]);
 
   const unreadCount = notifications.filter((item) => !item.read_at).length;
-  const mobileNavItems = isAdmin ? [...navItems, ["Admin", "/admin", "M"]] : navItems;
+  const mobileNavItems = isAdmin ? [...navItems, ["navAdmin", "/admin", "M"]] : navItems;
 
   async function markAllRead() {
     const unread = notifications.filter((item) => !item.read_at);
@@ -42,14 +44,14 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen bg-transparent pb-20 text-slate-900 dark:text-slate-100 lg:pb-0">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 border-r border-slate-200/80 bg-white/90 p-5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 lg:block">
+      <aside className={`fixed inset-y-0 z-20 hidden w-72 border-slate-200/80 bg-white/90 p-5 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 lg:block ${isArabic ? "right-0 border-l" : "left-0 border-r"}`}>
         <Link to="/" className="block rounded-lg bg-gradient-to-br from-teal-700 to-emerald-600 p-4 text-white shadow-soft">
           <p className="text-sm font-semibold opacity-85">Mawahib</p>
           <p className="text-xl font-bold">Community Platform</p>
-          <p className="mt-3 text-xs leading-5 text-teal-50">Tasks, teams, points, badges, and progress in one calm workspace.</p>
+          <p className="mt-3 text-xs leading-5 text-teal-50">{t("appTagline")}</p>
         </Link>
         <nav className="mt-8 space-y-1">
-          {navItems.map(([label, to, initial]) => (
+          {navItems.map(([labelKey, to, initial]) => (
             <NavLink
               key={to}
               to={to}
@@ -63,7 +65,7 @@ export default function AppLayout() {
               }
             >
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-xs shadow-sm dark:bg-slate-900">{initial}</span>
-              {label}
+              {t(labelKey)}
             </NavLink>
           ))}
           {isAdmin && (
@@ -78,7 +80,7 @@ export default function AppLayout() {
               }
             >
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-xs shadow-sm dark:bg-slate-900">M</span>
-              Admin Panel
+              {t("navAdmin")}
             </NavLink>
           )}
         </nav>
@@ -88,27 +90,30 @@ export default function AppLayout() {
         </div>
       </aside>
 
-      <div className="lg:pl-72">
+      <div className={isArabic ? "lg:pr-72" : "lg:pl-72"}>
         <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/85 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/85 sm:px-6">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Mawahib workspace</p>
-              <p className="font-semibold">Welcome, {user?.full_name?.split(" ")[0] || "member"}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("workspace")}</p>
+              <p className="font-semibold">{t("welcome")}, {user?.full_name?.split(" ")[0] || t("member")}</p>
             </div>
             <div className="flex items-center gap-2 overflow-x-auto">
               <button
                 className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 sm:text-sm"
                 type="button"
                 onClick={markAllRead}
-                title="Mark notifications as read"
+                title={t("markNotificationsRead")}
               >
-                {unreadCount} unread
+                {unreadCount} {t("unread")}
+              </button>
+              <button className="btn-secondary" onClick={toggleLanguage}>
+                {t("switchLanguage")}
               </button>
               <button className="btn-secondary" onClick={() => setDark((value) => !value)}>
-                {dark ? "Light" : "Dark"}
+                {dark ? t("light") : t("dark")}
               </button>
               <button className="btn-secondary" onClick={logout}>
-                Logout
+                {t("logout")}
               </button>
             </div>
           </div>
@@ -118,7 +123,7 @@ export default function AppLayout() {
         </main>
       </div>
       <nav className="fixed inset-x-3 bottom-3 z-30 flex gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-white/95 p-1 shadow-soft backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:hidden">
-        {mobileNavItems.map(([label, to, initial]) => (
+        {mobileNavItems.map(([labelKey, to, initial]) => (
           <NavLink
             key={to}
             to={to}
@@ -130,7 +135,7 @@ export default function AppLayout() {
             }
           >
             <span className="text-sm">{initial}</span>
-            <span className="mt-0.5 max-w-full truncate">{label}</span>
+            <span className="mt-0.5 max-w-full truncate">{t(labelKey)}</span>
           </NavLink>
         ))}
       </nav>

@@ -3,8 +3,10 @@ import json
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import EmailStr, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -34,12 +36,12 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW_SECONDS: int = 60
     LOG_LEVEL: str = "INFO"
     AUTO_CREATE_TABLES: bool = False
-    INITIAL_OWNER_EMAIL: str | None = None
+    INITIAL_OWNER_EMAIL: EmailStr | None = None
     INITIAL_OWNER_PASSWORD: str | None = None
     INITIAL_OWNER_NAME: str = "Mawahib Owner"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=BACKEND_DIR / ".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",

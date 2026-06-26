@@ -6,11 +6,13 @@ import LoadingPanel from "../components/LoadingPanel.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
+import { useLanguage } from "../i18n/LanguageContext.jsx";
 import { api, apiErrorMessage } from "../services/api";
 import { submissionStatuses } from "../services/constants";
 
 export default function Submissions() {
   const { canReview } = useAuth();
+  const { formatDateTime, t } = useLanguage();
   const [submissions, setSubmissions] = useState([]);
   const [reviewing, setReviewing] = useState(null);
   const [review, setReview] = useState({ status: "Accepted", feedback: "", excellent_work: false, helping_members_points: false });
@@ -48,7 +50,7 @@ export default function Submissions() {
     setMessage(null);
     try {
       await api.patch(`/submissions/${reviewing.id}/review`, review);
-      setMessage({ tone: "success", text: "Review saved." });
+      setMessage({ tone: "success", text: t("reviewSaved") });
       setReviewing(null);
       load();
     } catch (err) {
@@ -74,14 +76,14 @@ export default function Submissions() {
 
   return (
     <>
-      <PageHeader title="Submissions" eyebrow="Review status and feedback" />
+      <PageHeader title={t("submissionsTitle")} eyebrow={t("submissionsEyebrow")} />
       {message && <Alert tone={message.tone} className="mb-4">{message.text}</Alert>}
       {error && <Alert tone="error" className="mb-4">{error}</Alert>}
-      {loading && <LoadingPanel label="Loading submissions..." />}
+      {loading && <LoadingPanel label={t("loadingSubmissions")} />}
       {!loading && !error && submissions.length === 0 && (
         <EmptyState
-          title={canReview ? "No submissions to review" : "No submissions yet"}
-          body={canReview ? "Student work will appear here as soon as it is submitted." : "Submit a task from the Tasks page and your review status will appear here."}
+          title={canReview ? t("noReviewTitle") : t("noSubmissionsTitle")}
+          body={canReview ? t("noReviewBody") : t("noSubmissionsBody")}
         />
       )}
       {!loading && !error && submissions.length > 0 && (
@@ -92,6 +94,8 @@ export default function Submissions() {
               key={item.id}
               item={item}
               canReview={canReview}
+              formatDateTime={formatDateTime}
+              t={t}
               onReview={() => openReview(item)}
               onFile={() => openFile(item)}
             />
@@ -101,7 +105,7 @@ export default function Submissions() {
           <table className="hidden min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800 md:table">
             <thead className="bg-slate-50 dark:bg-slate-800">
               <tr>
-                {["Task", "Student", "Team", "Status", "Submitted", "Proof", "Action"].map((heading) => (
+                {[t("tasks"), t("student"), t("team"), t("status"), t("submitted"), t("proof"), t("action")].map((heading) => (
                   <th key={heading} className="px-4 py-3 text-left font-semibold">{heading}</th>
                 ))}
               </tr>
@@ -111,22 +115,22 @@ export default function Submissions() {
                 <tr key={item.id}>
                   <td className="px-4 py-3 font-semibold">{item.task_title}</td>
                   <td className="px-4 py-3">{item.student_name}</td>
-                  <td className="px-4 py-3">{item.team_name || "No team"}</td>
+                  <td className="px-4 py-3">{item.team_name || t("noTeam")}</td>
                   <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
-                  <td className="px-4 py-3">{new Date(item.submitted_at).toLocaleString()}</td>
+                  <td className="px-4 py-3">{formatDateTime(item.submitted_at)}</td>
                   <td className="px-4 py-3">
                     <div className="space-y-1">
-                      {item.link_url && <a className="block text-teal-700 dark:text-teal-300" href={item.link_url} target="_blank" rel="noreferrer">Link</a>}
+                      {item.link_url && <a className="block text-teal-700 dark:text-teal-300" href={item.link_url} target="_blank" rel="noreferrer">{t("link")}</a>}
                       {item.github_url && <a className="block text-teal-700 dark:text-teal-300" href={item.github_url} target="_blank" rel="noreferrer">GitHub</a>}
                       {item.file_url && (
                         <button className="block text-left text-teal-700 dark:text-teal-300" type="button" onClick={() => openFile(item)}>
-                          File
+                          {t("file")}
                         </button>
                       )}
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    {canReview ? <button className="btn-secondary" onClick={() => openReview(item)}>Review</button> : item.feedback || "Awaiting review"}
+                    {canReview ? <button className="btn-secondary" onClick={() => openReview(item)}>{t("review")}</button> : item.feedback || t("awaitingFeedback")}
                   </td>
                 </tr>
               ))}
@@ -141,27 +145,27 @@ export default function Submissions() {
           <form className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-soft dark:bg-slate-900" onSubmit={submitReview}>
             <div className="flex items-start justify-between">
               <div>
-                <p className="label">Review submission</p>
+                <p className="label">{t("review")}</p>
                 <h2 className="mt-1 text-xl font-bold">{reviewing.task_title}</h2>
               </div>
-              <button type="button" className="btn-secondary" onClick={() => setReviewing(null)}>Close</button>
+              <button type="button" className="btn-secondary" onClick={() => setReviewing(null)}>{t("close")}</button>
             </div>
             <div className="mt-5 space-y-4">
               <select className="input" value={review.status} onChange={(event) => setReview({ ...review, status: event.target.value })}>
                 {submissionStatuses.map((status) => <option key={status}>{status}</option>)}
               </select>
-              <textarea className="input min-h-28" placeholder="Feedback" value={review.feedback} onChange={(event) => setReview({ ...review, feedback: event.target.value })} />
+              <textarea className="input min-h-28" placeholder={t("feedback")} value={review.feedback} onChange={(event) => setReview({ ...review, feedback: event.target.value })} />
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={review.excellent_work} onChange={(event) => setReview({ ...review, excellent_work: event.target.checked })} />
-                Excellent work bonus (+50)
+                {t("excellentBonus")}
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={review.helping_members_points} onChange={(event) => setReview({ ...review, helping_members_points: event.target.checked })} />
-                Helped members bonus (+20)
+                {t("helpingBonus")}
               </label>
             </div>
             <button className="btn-primary mt-5 w-full disabled:cursor-not-allowed disabled:opacity-60" disabled={savingReview}>
-              {savingReview ? "Saving review..." : "Save review"}
+              {savingReview ? t("savingReview") : t("saveReview")}
             </button>
           </form>
         </div>
@@ -170,28 +174,28 @@ export default function Submissions() {
   );
 }
 
-function SubmissionCard({ item, canReview, onReview, onFile }) {
+function SubmissionCard({ item, canReview, formatDateTime, t, onReview, onFile }) {
   return (
     <article className="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-100 dark:bg-slate-800 dark:ring-slate-700">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-bold">{item.task_title}</p>
-          <p className="mt-1 text-sm text-slate-500">{item.student_name} · {item.team_name || "No team"}</p>
+          <p className="mt-1 text-sm text-slate-500">{item.student_name} · {item.team_name || t("noTeam")}</p>
         </div>
         <StatusBadge status={item.status} />
       </div>
-      <p className="mt-3 text-xs font-semibold text-slate-500">{new Date(item.submitted_at).toLocaleString()}</p>
+      <p className="mt-3 text-xs font-semibold text-slate-500">{formatDateTime(item.submitted_at)}</p>
       <div className="mt-4 flex flex-wrap gap-2 text-sm font-semibold">
-        {item.link_url && <a className="rounded-lg bg-white px-3 py-2 text-teal-700 dark:bg-slate-900 dark:text-teal-300" href={item.link_url} target="_blank" rel="noreferrer">Link</a>}
+        {item.link_url && <a className="rounded-lg bg-white px-3 py-2 text-teal-700 dark:bg-slate-900 dark:text-teal-300" href={item.link_url} target="_blank" rel="noreferrer">{t("link")}</a>}
         {item.github_url && <a className="rounded-lg bg-white px-3 py-2 text-teal-700 dark:bg-slate-900 dark:text-teal-300" href={item.github_url} target="_blank" rel="noreferrer">GitHub</a>}
-        {item.file_url && <button className="rounded-lg bg-white px-3 py-2 text-teal-700 dark:bg-slate-900 dark:text-teal-300" type="button" onClick={onFile}>File</button>}
+        {item.file_url && <button className="rounded-lg bg-white px-3 py-2 text-teal-700 dark:bg-slate-900 dark:text-teal-300" type="button" onClick={onFile}>{t("file")}</button>}
       </div>
       <div className="mt-4">
         {canReview ? (
-          <button className="btn-secondary w-full" type="button" onClick={onReview}>Review</button>
+          <button className="btn-secondary w-full" type="button" onClick={onReview}>{t("review")}</button>
         ) : (
           <p className="rounded-lg bg-white p-3 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-            {item.feedback || "Awaiting review"}
+            {item.feedback || t("awaitingFeedback")}
           </p>
         )}
       </div>

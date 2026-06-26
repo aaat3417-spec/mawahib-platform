@@ -4,9 +4,11 @@ import { Link } from "react-router-dom";
 import Alert from "../components/Alert.jsx";
 import LoadingPanel from "../components/LoadingPanel.jsx";
 import StatCard from "../components/StatCard.jsx";
+import { useLanguage } from "../i18n/LanguageContext.jsx";
 import { api, apiErrorMessage } from "../services/api";
 
 export default function Dashboard() {
+  const { formatDate, formatDateTime, formatWeekday, t } = useLanguage();
   const [dashboard, setDashboard] = useState(null);
   const [error, setError] = useState("");
 
@@ -21,7 +23,7 @@ export default function Dashboard() {
   }
 
   if (!dashboard) {
-    return <LoadingPanel label="Loading dashboard..." />;
+    return <LoadingPanel label={t("loadingDashboard")} />;
   }
 
   const weeklyTotal = dashboard.weekly_progress.reduce((sum, day) => sum + day.submissions, 0);
@@ -32,43 +34,43 @@ export default function Dashboard() {
       <section className="mb-6 overflow-hidden rounded-lg bg-gradient-to-br from-teal-800 via-teal-700 to-emerald-600 p-5 text-white shadow-soft sm:p-7">
         <div className="grid gap-6 lg:grid-cols-[1fr_220px] lg:items-center">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal-100">Student command center</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal-100">{t("dashboardEyebrow")}</p>
             <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{dashboard.welcome_message}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-teal-50 sm:text-base">
-              Stay close to deadlines, keep your submissions moving, and build a portfolio that tells the story of your growth.
+              {t("dashboardSubtitle")}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-teal-800 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg" to="/tasks">
-                Continue tasks
+                {t("continueTasks")}
               </Link>
               <Link className="rounded-lg border border-white/30 px-4 py-2 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/10" to="/leaderboard">
-                View rankings
+                {t("viewRankings")}
               </Link>
             </div>
           </div>
           <div className="rounded-lg border border-white/20 bg-white/10 p-5 text-center backdrop-blur">
             <ProgressRing value={dashboard.progress_percentage} />
-            <p className="mt-3 text-sm font-semibold text-teal-50">Required task progress</p>
+            <p className="mt-3 text-sm font-semibold text-teal-50">{t("requiredTaskProgress")}</p>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total points" value={dashboard.total_points} detail="Accepted work and bonuses" icon="P" accent="teal" trend={weeklyTotal ? `${weeklyTotal} this week` : undefined} />
-        <StatCard label="Current rank" value={dashboard.current_rank ? `#${dashboard.current_rank}` : "Unranked"} detail="All-time student ranking" icon="R" accent="amber" />
-        <StatCard label="Completed tasks" value={dashboard.completed_tasks} detail="Accepted submissions" icon="C" accent="sky" />
-        <StatCard label="Progress" value={`${dashboard.progress_percentage}%`} detail="Required completion" icon="%" accent="rose" />
+        <StatCard label={t("totalPoints")} value={dashboard.total_points} detail={t("acceptedWorkBonuses")} icon="P" accent="teal" trend={weeklyTotal ? `${weeklyTotal} ${t("thisWeek")}` : undefined} />
+        <StatCard label={t("currentRank")} value={dashboard.current_rank ? `#${dashboard.current_rank}` : t("unranked")} detail={t("allTimeStudentRanking")} icon="R" accent="amber" />
+        <StatCard label={t("completedTasks")} value={dashboard.completed_tasks} detail={t("acceptedSubmissions")} icon="C" accent="sky" />
+        <StatCard label={t("progress")} value={`${dashboard.progress_percentage}%`} detail={t("requiredCompletion")} icon="%" accent="rose" />
       </section>
 
       <section className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="panel p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="label">Activity</p>
-              <h2 className="mt-1 font-bold">Weekly progress</h2>
+              <p className="label">{t("activity")}</p>
+              <h2 className="mt-1 font-bold">{t("weeklyProgress")}</h2>
             </div>
             <span className="rounded-full bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-700 dark:bg-teal-500/10 dark:text-teal-200">
-              {weeklyTotal} submissions
+              {weeklyTotal} {t("submissionsCount")}
             </span>
           </div>
           <div className="mt-6 grid h-56 grid-cols-7 items-end gap-2 sm:gap-3">
@@ -79,7 +81,7 @@ export default function Dashboard() {
                   <div className="relative flex flex-1 items-end rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
                     <div className="w-full rounded-md bg-gradient-to-t from-teal-700 to-emerald-400 shadow-sm" style={{ height }} />
                   </div>
-                  <p className="mt-2 text-xs font-semibold text-slate-500">{new Date(day.date).toLocaleDateString(undefined, { weekday: "short" })}</p>
+                  <p className="mt-2 text-xs font-semibold text-slate-500">{formatWeekday(day.date)}</p>
                   <p className="text-xs text-slate-400">{day.submissions}</p>
                 </div>
               );
@@ -89,13 +91,13 @@ export default function Dashboard() {
         <div className="panel p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="label">Focus</p>
-              <h2 className="mt-1 font-bold">Upcoming deadlines</h2>
+              <p className="label">{t("focus")}</p>
+              <h2 className="mt-1 font-bold">{t("upcomingDeadlines")}</h2>
             </div>
-            <Link className="text-sm font-semibold text-teal-700 dark:text-teal-300" to="/tasks">All tasks</Link>
+            <Link className="text-sm font-semibold text-teal-700 dark:text-teal-300" to="/tasks">{t("navTasks")}</Link>
           </div>
           <div className="mt-4 space-y-3">
-            {dashboard.upcoming_deadlines.length === 0 && <p className="text-sm text-slate-500">No upcoming deadlines.</p>}
+            {dashboard.upcoming_deadlines.length === 0 && <p className="text-sm text-slate-500">{t("noDeadlines")}</p>}
             {dashboard.upcoming_deadlines.map((task, index) => (
               <Link key={task.id} to="/tasks" className="flex items-center gap-3 rounded-lg border border-slate-200 p-3 transition hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md dark:border-slate-800 dark:hover:bg-slate-800">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-950 text-sm font-bold text-white dark:bg-white dark:text-slate-950">
@@ -103,7 +105,7 @@ export default function Dashboard() {
                 </span>
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{task.title}</p>
-                  <p className="text-sm text-slate-500">{new Date(task.deadline).toLocaleString()} · {task.points} pts</p>
+                  <p className="text-sm text-slate-500">{formatDateTime(task.deadline)} · {task.points} {t("points")}</p>
                 </div>
               </Link>
             ))}
@@ -114,19 +116,19 @@ export default function Dashboard() {
       <section className="mt-6 panel p-5">
         <div className="flex items-center justify-between">
           <div>
-            <p className="label">Community</p>
-            <h2 className="mt-1 font-bold">Recent announcements</h2>
+            <p className="label">{t("community")}</p>
+            <h2 className="mt-1 font-bold">{t("recentAnnouncements")}</h2>
           </div>
-          <Link className="text-sm font-semibold text-teal-700 dark:text-teal-300" to="/announcements">Open board</Link>
+          <Link className="text-sm font-semibold text-teal-700 dark:text-teal-300" to="/announcements">{t("navAnnouncements")}</Link>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {dashboard.recent_announcements.map((item) => (
             <div key={item.id} className="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-100 dark:bg-slate-800 dark:ring-slate-700">
-              <p className="font-semibold">{item.is_pinned ? "Pinned · " : ""}{item.title}</p>
-              <p className="mt-1 text-sm text-slate-500">{new Date(item.created_at).toLocaleDateString()}</p>
+              <p className="font-semibold">{item.is_pinned ? `${t("pinned")} · ` : ""}{item.title}</p>
+              <p className="mt-1 text-sm text-slate-500">{formatDate(item.created_at)}</p>
             </div>
           ))}
-          {dashboard.recent_announcements.length === 0 && <p className="text-sm text-slate-500">No recent announcements.</p>}
+          {dashboard.recent_announcements.length === 0 && <p className="text-sm text-slate-500">{t("noAnnouncements")}</p>}
         </div>
       </section>
     </>

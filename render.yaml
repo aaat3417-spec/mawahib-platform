@@ -5,11 +5,17 @@ services:
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: sh start_render.sh
+    disk:
+      name: mawahib-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
       - key: DATABASE_URL
-        value: sqlite:///./mawahib.db
+        value: sqlite:////var/data/mawahib.db
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
       - key: SECRET_KEY
         generateValue: true
       - key: INITIAL_OWNER_EMAIL

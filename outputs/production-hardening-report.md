@@ -101,7 +101,8 @@ Start Command: sh start_render.sh
 Backend environment:
 
 ```text
-DATABASE_URL=sqlite:///./mawahib.db
+DATABASE_URL=sqlite:////var/data/mawahib.db
+UPLOAD_DIR=/var/data/uploads
 PYTHON_VERSION=3.11.11
 INITIAL_OWNER_EMAIL=owner@mawahib.com
 INITIAL_OWNER_PASSWORD=ChangeMe123!
