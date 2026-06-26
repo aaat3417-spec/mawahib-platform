@@ -29,6 +29,7 @@ export default function AppLayout() {
   }, [location.pathname]);
 
   const unreadCount = notifications.filter((item) => !item.read_at).length;
+  const mobileNavItems = isAdmin ? [...navItems, ["Admin", "/admin", "M"]] : navItems;
 
   async function markAllRead() {
     const unread = notifications.filter((item) => !item.read_at);
@@ -116,14 +117,14 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
-      <nav className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-6 rounded-lg border border-slate-200 bg-white/95 p-1 shadow-soft backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:hidden">
-        {navItems.map(([label, to, initial]) => (
+      <nav className="fixed inset-x-3 bottom-3 z-30 flex gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-white/95 p-1 shadow-soft backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:hidden">
+        {mobileNavItems.map(([label, to, initial]) => (
           <NavLink
             key={to}
             to={to}
             end={to === "/"}
             className={({ isActive }) =>
-              `flex min-w-0 flex-col items-center justify-center rounded-md px-1 py-2 text-[10px] font-semibold transition ${
+              `flex min-w-[4.25rem] flex-1 flex-col items-center justify-center rounded-md px-1 py-2 text-[10px] font-semibold transition ${
                 isActive ? "bg-teal-50 text-teal-800 dark:bg-teal-500/15 dark:text-teal-200" : "text-slate-500 dark:text-slate-400"
               }`
             }

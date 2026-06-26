@@ -81,6 +81,9 @@ This value is required so the deployed Vite app calls the deployed FastAPI servi
 
 ### Frontend React Router Rewrite
 
+The frontend now uses hash-based routing, so in-app links look like `/#/tasks` and survive browser refreshes even when the static host does not rewrite nested routes correctly.
+Keep the rewrite below as an extra safety net for old direct links such as `/tasks` or `/leaderboard`.
+
 For an existing manually-created Render Static Site, add this rule in the frontend service:
 
 ```text
@@ -90,8 +93,7 @@ Destination: /index.html
 Action: Rewrite
 ```
 
-This is required for direct refreshes on routes such as `/leaderboard`, `/tasks`, `/profile`, and `/admin`.
-Without it, Render serves `Not Found` because the React app owns those routes in the browser.
+This prevents `Not Found` for direct legacy refreshes on routes such as `/leaderboard`, `/tasks`, `/profile`, and `/admin`.
 
 ## Login Test
 

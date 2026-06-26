@@ -34,7 +34,9 @@ export default function AdminPanel() {
   const [teamForm, setTeamForm] = useState({ name: "", description: "" });
   const [pointAward, setPointAward] = useState(blankPointAward);
   const [badgeAward, setBadgeAward] = useState(blankBadgeAward);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(null);
+  const [taskError, setTaskError] = useState("");
+  const [busyAction, setBusyAction] = useState("");
 
   useEffect(() => {
     load();
@@ -49,34 +51,51 @@ export default function AdminPanel() {
     api.get("/statistics/overview").then(({ data }) => setStatistics(data));
   }
 
+  function showMessage(type, text) {
+    setMessage({ type, text });
+  }
+
   async function createUser(event) {
     event.preventDefault();
-    setMessage("");
+    setMessage(null);
     try {
       await api.post("/users", { ...userForm, team_id: userForm.team_id ? Number(userForm.team_id) : null });
       setUserForm(blankUser);
-      setMessage("User created.");
+      showMessage("success", "User created.");
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      showMessage("error", apiErrorMessage(err));
     }
   }
 
   async function createTask(event) {
     event.preventDefault();
+    setTaskError("");
+    setMessage(null);
+    const validationError = validateTaskForm(taskForm);
+    if (validationError) {
+      setTaskError(validationError);
+      showMessage("error", validationError);
+      return;
+    }
+    setBusyAction("task");
     try {
       await api.post("/tasks", {
         ...taskForm,
         estimated_hours: Number(taskForm.estimated_hours),
         points: Number(taskForm.points),
         deadline: new Date(taskForm.deadline).toISOString(),
-        attachments: taskForm.attachments.split("\n").map((item) => item.trim()).filter(Boolean)
+        attachments: parseAttachmentLines(taskForm.attachments)
       });
       setTaskForm(blankTask);
-      setMessage("Task created and students notified.");
+      showMessage("success", "Task created and students notified.");
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      const text = apiErrorMessage(err);
+      setTaskError(text);
+      showMessage("error", text);
+    } finally {
+      setBusyAction("");
     }
   }
 
@@ -89,10 +108,10 @@ export default function AdminPanel() {
         expires_at: announcementForm.expires_at ? new Date(announcementForm.expires_at).toISOString() : null
       });
       setAnnouncementForm(blankAnnouncement);
-      setMessage("Announcement published.");
+      showMessage("success", "Announcement published.");
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      showMessage("error", apiErrorMessage(err));
     }
   }
 
@@ -101,20 +120,20 @@ export default function AdminPanel() {
     try {
       await api.post("/teams", teamForm);
       setTeamForm({ name: "", description: "" });
-      setMessage("Team created.");
+      showMessage("success", "Team created.");
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      showMessage("error", apiErrorMessage(err));
     }
   }
 
   async function promote(teamId, userId) {
     try {
       await api.post(`/teams/${teamId}/leader/${userId}`);
-      setMessage("Team leader promoted.");
+      showMessage("success", "Team leader promoted.");
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      showMessage("error", apiErrorMessage(err));
     }
   }
 
@@ -126,20 +145,20 @@ export default function AdminPanel() {
         team_id: user.team_id || null,
         is_active: user.is_active
       });
-      setMessage("User updated.");
+      showMessage("success", "User updated.");
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      showMessage("error", apiErrorMessage(err));
     }
   }
 
   async function deleteTask(taskId) {
     try {
       await api.delete(`/tasks/${taskId}`);
-      setMessage("Task deleted.");
+      showMessage("success", "Task deleted.");
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      showMessage("error", apiErrorMessage(err));
     }
   }
 
@@ -151,10 +170,10 @@ export default function AdminPanel() {
         deadline: new Date(task.deadline).toISOString(),
         is_required: task.is_required
       });
-      setMessage("Task updated.");
+      showMessage("success", "Task updated.");
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      showMessage("error", apiErrorMessage(err));
     }
   }
 
@@ -165,30 +184,30 @@ export default function AdminPanel() {
         body: announcement.body,
         is_pinned: announcement.is_pinned
       });
-      setMessage("Announcement updated.");
+      showMessage("success", "Announcement updated.");
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      showMessage("error", apiErrorMessage(err));
     }
   }
 
   async function toggleAnnouncement(announcement) {
     try {
       await api.patch(`/announcements/${announcement.id}`, { is_pinned: !announcement.is_pinned });
-      setMessage("Announcement updated.");
+      showMessage("success", "Announcement updated.");
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      showMessage("error", apiErrorMessage(err));
     }
   }
 
   async function deleteAnnouncement(announcementId) {
     try {
       await api.delete(`/announcements/${announcementId}`);
-      setMessage("Announcement deleted.");
+      showMessage("success", "Announcement deleted.");
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      showMessage("error", apiErrorMessage(err));
     }
   }
 
@@ -200,10 +219,10 @@ export default function AdminPanel() {
         description: pointAward.description || "Administrative points adjustment"
       });
       setPointAward(blankPointAward);
-      setMessage("Points awarded.");
+      showMessage("success", "Points awarded.");
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      showMessage("error", apiErrorMessage(err));
     }
   }
 
@@ -215,17 +234,17 @@ export default function AdminPanel() {
         badge_code: badgeAward.badge_code
       });
       setBadgeAward(blankBadgeAward);
-      setMessage("Badge awarded.");
+      showMessage("success", "Badge awarded.");
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      showMessage("error", apiErrorMessage(err));
     }
   }
 
   return (
     <>
       <PageHeader title="Admin Panel" eyebrow="Users, teams, tasks, announcements, and statistics" />
-      {message && <p className="mb-4 rounded-lg bg-slate-100 px-4 py-3 text-sm dark:bg-slate-800">{message}</p>}
+      <Toast message={message} onClose={() => setMessage(null)} />
 
       {statistics && (
         <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -257,7 +276,7 @@ export default function AdminPanel() {
           <textarea className="input min-h-28" placeholder="Description" value={teamForm.description} onChange={(event) => setTeamForm({ ...teamForm, description: event.target.value })} />
         </AdminForm>
 
-        <AdminForm title="Create task" onSubmit={createTask}>
+        <AdminForm title="Create task" onSubmit={createTask} feedback={taskError} busy={busyAction === "task"}>
           <input className="input" placeholder="Title" value={taskForm.title} onChange={(event) => setTaskForm({ ...taskForm, title: event.target.value })} required />
           <textarea className="input min-h-28" placeholder="Description" value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} required />
           <div className="grid gap-3 sm:grid-cols-2">
@@ -435,14 +454,69 @@ export default function AdminPanel() {
   );
 }
 
-function AdminForm({ title, children, onSubmit }) {
+function AdminForm({ title, children, onSubmit, feedback = "", busy = false }) {
   return (
-    <form className="panel p-5" onSubmit={onSubmit}>
+    <form className="panel p-5" onSubmit={onSubmit} noValidate>
       <h2 className="mb-4 font-bold">{title}</h2>
       <div className="space-y-3">{children}</div>
-      <button className="btn-primary mt-4 w-full">Save</button>
+      {feedback && (
+        <p className="mt-4 rounded-lg bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
+          {feedback}
+        </p>
+      )}
+      <button className="btn-primary mt-4 w-full disabled:cursor-not-allowed disabled:opacity-60" disabled={busy}>
+        {busy ? "Saving..." : "Save"}
+      </button>
     </form>
   );
+}
+
+function Toast({ message, onClose }) {
+  if (!message) {
+    return null;
+  }
+  const isError = message.type === "error";
+  return (
+    <div className="fixed inset-x-3 top-3 z-50 mx-auto max-w-2xl sm:top-4" role="status" aria-live="polite">
+      <div className={`flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm font-semibold shadow-soft ${
+        isError
+          ? "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-100"
+          : "border-teal-200 bg-teal-50 text-teal-800 dark:border-teal-500/30 dark:bg-teal-500/15 dark:text-teal-100"
+      }`}>
+        <span>{message.text}</span>
+        <button className="shrink-0 rounded-md px-2 py-1 text-xs opacity-75 hover:opacity-100" type="button" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function parseAttachmentLines(value) {
+  return value.split("\n").map((item) => item.trim()).filter(Boolean);
+}
+
+function validateTaskForm(form) {
+  if (form.title.trim().length < 3) {
+    return "Task title must be at least 3 characters.";
+  }
+  if (form.description.trim().length < 10) {
+    return "Task description must be at least 10 characters.";
+  }
+  if (!form.deadline || Number.isNaN(new Date(form.deadline).getTime())) {
+    return "Choose a valid deadline before saving the task.";
+  }
+  if (Number(form.estimated_hours) < 1 || Number(form.estimated_hours) > 500) {
+    return "Estimated hours must be between 1 and 500.";
+  }
+  if (Number(form.points) < 1 || Number(form.points) > 10000) {
+    return "Points must be between 1 and 10000.";
+  }
+  const invalidAttachment = parseAttachmentLines(form.attachments).find((item) => !item.startsWith("http://") && !item.startsWith("https://"));
+  if (invalidAttachment) {
+    return "Attachment URLs must start with http:// or https://.";
+  }
+  return "";
 }
 
 function toDateTimeLocal(value) {

@@ -39,7 +39,14 @@ export function apiErrorMessage(error) {
   }
   const detail = error.response?.data?.detail;
   if (Array.isArray(detail)) {
-    return detail.map((item) => item.msg).join(", ");
+    return detail.map((item) => {
+      const field = Array.isArray(item.loc) ? item.loc.filter((part) => part !== "body").join(".") : "";
+      const message = item.msg || "Invalid value";
+      return field ? `${field}: ${message}` : message;
+    }).join(" ");
+  }
+  if (typeof detail === "object" && detail !== null) {
+    return JSON.stringify(detail);
   }
   return detail || error.message || "Something went wrong.";
 }
