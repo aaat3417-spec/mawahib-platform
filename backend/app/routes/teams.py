@@ -9,6 +9,7 @@ from app.routes.deps import get_current_user, get_db, require_admin
 from app.schemas.team import TeamCreate, TeamRead, TeamUpdate
 from app.services.badges import evaluate_badges_for_user
 from app.services.points import total_points
+from app.services.team_codes import assign_unique_team_code
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -36,6 +37,7 @@ def create_team(
     team = Team(name=payload.name, description=payload.description)
     db.add(team)
     db.flush()
+    assign_unique_team_code(db, team)
     if payload.leader_id:
         _assign_team_leader(db, team, payload.leader_id)
     db.commit()

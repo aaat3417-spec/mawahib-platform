@@ -3,15 +3,16 @@ import { Navigate, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useLanguage } from "../i18n/LanguageContext.jsx";
-import { apiErrorMessage } from "../services/api";
+import { api, apiErrorMessage } from "../services/api";
 
 export default function Login() {
   const { user, login, setupOwner } = useAuth();
   const { t, toggleLanguage } = useLanguage();
   const navigate = useNavigate();
   const [mode, setMode] = useState("login");
-  const [form, setForm] = useState({ email: "", password: "", full_name: "" });
+  const [form, setForm] = useState({ email: "", password: "", confirm_password: "", full_name: "", team_code: "", bio: "" });
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   if (user) {
@@ -21,14 +22,30 @@ export default function Login() {
   async function submit(event) {
     event.preventDefault();
     setError("");
+    setSuccess("");
     setSubmitting(true);
     try {
       if (mode === "setup") {
         await setupOwner(form);
+        navigate("/");
+      } else if (mode === "join") {
+        if (form.password !== form.confirm_password) {
+          setError(t("passwordsDoNotMatch"));
+          return;
+        }
+        await api.post("/registration/request", {
+          team_code: form.team_code,
+          full_name: form.full_name,
+          email: form.email,
+          password: form.password,
+          bio: form.bio
+        });
+        setForm({ email: "", password: "", confirm_password: "", full_name: "", team_code: "", bio: "" });
+        setSuccess(t("requestSent"));
       } else {
         await login(form.email, form.password);
+        navigate("/");
       }
-      navigate("/");
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
@@ -87,13 +104,13 @@ export default function Login() {
           <form className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-soft dark:border-slate-800 dark:bg-slate-950 sm:p-6" onSubmit={submit}>
             <div className="mb-6">
               <p className="label">{t("secureAccess")}</p>
-              <h2 className="mt-1 text-2xl font-bold">{mode === "setup" ? t("createOwnerAccount") : t("welcomeBack")}</h2>
+              <h2 className="mt-1 text-2xl font-bold">{mode === "setup" ? t("createOwnerAccount") : mode === "join" ? t("joinWithCode") : t("welcomeBack")}</h2>
               <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                {mode === "setup" ? t("setupSubtitle") : t("loginSubtitle")}
+                {mode === "setup" ? t("setupSubtitle") : mode === "join" ? t("registrationBody") : t("loginSubtitle")}
               </p>
             </div>
 
-            <div className="mb-6 flex rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
+            <div className="mb-6 grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
             <button
               type="button"
               className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold ${mode === "login" ? "bg-white shadow-sm dark:bg-slate-950" : "text-slate-500"}`}
@@ -103,7 +120,14 @@ export default function Login() {
             </button>
             <button
               type="button"
-              className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold ${mode === "setup" ? "bg-white shadow-sm dark:bg-slate-950" : "text-slate-500"}`}
+              className={`rounded-md px-3 py-2 text-sm font-semibold ${mode === "join" ? "bg-white shadow-sm dark:bg-slate-950" : "text-slate-500"}`}
+              onClick={() => setMode("join")}
+            >
+              {t("joinWithCode")}
+            </button>
+            <button
+              type="button"
+              className={`rounded-md px-3 py-2 text-sm font-semibold ${mode === "setup" ? "bg-white shadow-sm dark:bg-slate-950" : "text-slate-500"}`}
               onClick={() => setMode("setup")}
             >
               {t("firstOwner")}
@@ -111,10 +135,16 @@ export default function Login() {
           </div>
 
           <div className="mt-6 space-y-4">
-            {mode === "setup" && (
+            {(mode === "setup" || mode === "join") && (
               <label className="block">
                 <span className="label">{t("fullName")}</span>
                 <input className="input mt-1" value={form.full_name} onChange={(event) => setForm({ ...form, full_name: event.target.value })} required />
+              </label>
+            )}
+            {mode === "join" && (
+              <label className="block">
+                <span className="label">{t("teamCode")}</span>
+                <input className="input mt-1 uppercase" value={form.team_code} onChange={(event) => setForm({ ...form, team_code: event.target.value })} required />
               </label>
             )}
             <label className="block">
@@ -125,10 +155,23 @@ export default function Login() {
               <span className="label">{t("password")}</span>
               <input className="input mt-1" type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required minLength={8} maxLength={72} />
             </label>
+            {mode === "join" && (
+              <>
+                <label className="block">
+                  <span className="label">{t("confirmPassword")}</span>
+                  <input className="input mt-1" type="password" value={form.confirm_password} onChange={(event) => setForm({ ...form, confirm_password: event.target.value })} required minLength={8} maxLength={72} />
+                </label>
+                <label className="block">
+                  <span className="label">{t("bio")}</span>
+                  <textarea className="input mt-1 min-h-24" value={form.bio} onChange={(event) => setForm({ ...form, bio: event.target.value })} />
+                </label>
+              </>
+            )}
           </div>
           {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">{error}</p>}
+          {success && <p className="mt-4 rounded-lg bg-teal-50 px-3 py-2 text-sm text-teal-700 dark:bg-teal-500/10 dark:text-teal-200">{success}</p>}
           <button className="btn-primary mt-6 w-full" disabled={submitting}>
-            {submitting ? t("working") : mode === "setup" ? t("createOwner") : t("login")}
+            {submitting ? t("working") : mode === "setup" ? t("createOwner") : mode === "join" ? t("requestJoin") : t("login")}
           </button>
           <p className="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
             {t("accessFootnote")}

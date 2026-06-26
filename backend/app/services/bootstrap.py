@@ -6,6 +6,7 @@ from app.models.enums import Role
 from app.models.team import Team
 from app.models.user import User
 from app.services.badges import seed_badges
+from app.services.team_codes import assign_unique_team_code, ensure_team_codes
 
 DEFAULT_TEAMS = [
     ("Programming Team", "Software, algorithms, and application development."),
@@ -21,7 +22,10 @@ def seed_defaults(db: Session) -> None:
     existing_team_names = {team.name for team in db.query(Team).all()}
     for name, description in DEFAULT_TEAMS:
         if name not in existing_team_names:
-            db.add(Team(name=name, description=description))
+            team = Team(name=name, description=description)
+            db.add(team)
+            db.flush()
+            assign_unique_team_code(db, team)
 
     if settings.INITIAL_OWNER_EMAIL and settings.INITIAL_OWNER_PASSWORD:
         existing_owner = db.query(User).filter(User.email == settings.INITIAL_OWNER_EMAIL).first()
@@ -36,4 +40,4 @@ def seed_defaults(db: Session) -> None:
                 )
             )
     db.commit()
-
+    ensure_team_codes(db)

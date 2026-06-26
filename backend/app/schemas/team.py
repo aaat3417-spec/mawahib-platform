@@ -26,3 +26,7 @@ class TeamRead(TeamBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+class TeamAdminRead(TeamRead):
+    team_code: str | None = None
+    is_code_active: bool = True

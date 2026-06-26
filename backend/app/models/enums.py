@@ -32,6 +32,13 @@ class SubmissionStatus(StrEnum):
     REJECTED = "Rejected"
 
 
+class RegistrationRequestStatus(StrEnum):
+    PENDING = "Pending"
+    ACCEPTED = "Accepted"
+    REJECTED = "Rejected"
+    CHANGES_REQUESTED = "Changes Requested"
+
+
 class PointReason(StrEnum):
     TASK_COMPLETION = "task_completion"
     EXCELLENT_WORK = "excellent_work"
@@ -57,4 +64,3 @@ class NotificationType(StrEnum):
     NEW_ANNOUNCEMENT = "new_announcement"
     BADGE_EARNED = "badge_earned"
     RANK_CHANGED = "rank_changed"
-

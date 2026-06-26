@@ -6,7 +6,7 @@ Date: 2026-06-26
 
 The platform is materially safer and more usable after this pass. The most likely cause of the reported user disappearance was Render SQLite data stored on instance-local storage instead of a Persistent Disk. The backend seed path was reviewed and does not drop tables or delete users; the deployment configuration now stores SQLite and uploads under `/var/data`.
 
-For real production with real students, use PostgreSQL. SQLite on Render is acceptable only for testing or demos when backed by a Persistent Disk.
+For real production with real students, use PostgreSQL. The current Render blueprint now provisions PostgreSQL as the primary production database. SQLite is acceptable only for testing or demos when backed by a Persistent Disk.
 
 ## P0 Data Loss
 
@@ -16,7 +16,7 @@ Likely cause:
 
 Fix:
 - `render.yaml` now provisions a Render disk mounted at `/var/data`.
-- Backend Render env now uses `DATABASE_URL=sqlite:////var/data/mawahib.db`.
+- Backend Render env now uses a PostgreSQL connection string from `mawahib-postgres`.
 - Uploads now use `UPLOAD_DIR=/var/data/uploads`.
 - `init_db` remains non-destructive and uses SQLAlchemy `create_all`, which creates missing tables only.
 - Added a persistence warning if production SQLite is not under `/var/data`.
@@ -86,7 +86,7 @@ Confirmed existing protections:
 - File downloads check ownership/team/admin access.
 
 Remaining production recommendation:
-- Move real deployment to PostgreSQL before onboarding many real users.
+- Keep real deployment on PostgreSQL before onboarding many real users.
 - Disable docs in true production with `DOCS_ENABLED=false`.
 - Rotate `SECRET_KEY` and owner password before real usage.
 - Add automated test suite in CI; this repo currently has no dedicated test files.
@@ -109,11 +109,11 @@ Passed:
 
 Not performed:
 - Full authenticated browser walkthrough against the deployed Render URLs, because this pass used the local build/API for deterministic verification.
-- Real PostgreSQL migration run, because the requested Render free-plan path is SQLite.
+- Real hosted PostgreSQL migration on Render, because credentials/deployment dashboard access are outside this local workspace.
 
 ## Direct Production Answer
 
-For a real launch: use PostgreSQL.
+For a real launch: use PostgreSQL. This is now the primary Render blueprint path.
 
 If you stay on Render SQLite temporarily: you must use a Persistent Disk mounted at `/var/data`, with:
 

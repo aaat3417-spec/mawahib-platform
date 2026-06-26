@@ -76,9 +76,9 @@ Vite proxies `/api` to `http://localhost:8000`.
 ## Render Deployment
 
 For the free Render test deployment, use the dedicated guide at `outputs/render-deployment-guide.md`.
-If you test with SQLite on Render, mount a Persistent Disk at `/var/data` and use `DATABASE_URL=sqlite:////var/data/mawahib.db` plus `UPLOAD_DIR=/var/data/uploads`. Do not use `sqlite:///./mawahib.db` for real data on Render because instance-local files can be lost after restarts or rebuilds.
+Production Render deployments should use PostgreSQL and Alembic migrations. The included `render.yaml` provisions `mawahib-postgres` and injects its connection string into `DATABASE_URL`.
 
-For real production, use PostgreSQL and Alembic migrations. Render SQLite with a Persistent Disk is acceptable only for low-cost testing or demos.
+SQLite is only for local/demo testing. If you temporarily test SQLite on Render, mount a Persistent Disk at `/var/data` and use `DATABASE_URL=sqlite:////var/data/mawahib.db` plus `UPLOAD_DIR=/var/data/uploads`. Do not use `sqlite:///./mawahib.db` for real data on Render because instance-local files can be lost after restarts or rebuilds.
 
 ## Roles and Permissions
 

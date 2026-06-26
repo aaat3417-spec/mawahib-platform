@@ -113,6 +113,8 @@ def get_profile(
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+    if current_user.role == Role.TEAM_LEADER and user.team_id != current_user.team_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot view profiles outside your team.")
     if current_user.role == Role.STUDENT and current_user.id != user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Students can only view their own profile.")
     return _profile_for_user(db, user)

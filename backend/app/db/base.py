@@ -4,6 +4,7 @@ from app.models import (  # noqa: F401
     Badge,
     Notification,
     PointTransaction,
+    RegistrationRequest,
     StatisticSnapshot,
     Submission,
     Task,
@@ -11,4 +12,3 @@ from app.models import (  # noqa: F401
     User,
     UserBadge,
 )
-

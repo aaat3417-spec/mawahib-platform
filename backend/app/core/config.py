@@ -5,6 +5,7 @@ from typing import Annotated
 
 from pydantic import EmailStr, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
@@ -69,6 +70,14 @@ class Settings(BaseSettings):
                 raise ValueError("Wildcard allowed hosts are not allowed in production.")
             if self.DOCS_ENABLED:
                 raise ValueError("DOCS_ENABLED must be false in production.")
+            if self.is_sqlite:
+                url = make_url(self.DATABASE_URL)
+                database_path = url.database or ""
+                if database_path == ":memory:" or not database_path.startswith("/var/data/"):
+                    raise ValueError(
+                        "Production SQLite must use a Render Persistent Disk path such as "
+                        "sqlite:////var/data/mawahib.db. PostgreSQL is recommended for production."
+                    )
         return self
 
     @property

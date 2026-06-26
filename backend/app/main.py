@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.db.init_db import initialize_database
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
-from app.routes import announcements, auth, badges, leaderboard, notifications, statistics, submissions, tasks, teams, users
+from app.routes import admin, announcements, auth, badges, leaderboard, notifications, registration, statistics, submissions, tasks, teams, users
 from app.services.storage import ensure_upload_directories
 
 
@@ -45,6 +45,7 @@ app.add_middleware(RateLimitMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(auth.router, prefix=settings.API_PREFIX)
+app.include_router(admin.router, prefix=settings.API_PREFIX)
 app.include_router(users.router, prefix=settings.API_PREFIX)
 app.include_router(teams.router, prefix=settings.API_PREFIX)
 app.include_router(tasks.router, prefix=settings.API_PREFIX)
@@ -54,6 +55,8 @@ app.include_router(leaderboard.router, prefix=settings.API_PREFIX)
 app.include_router(statistics.router, prefix=settings.API_PREFIX)
 app.include_router(notifications.router, prefix=settings.API_PREFIX)
 app.include_router(badges.router, prefix=settings.API_PREFIX)
+app.include_router(registration.router, prefix=settings.API_PREFIX)
+app.include_router(registration.admin_router, prefix=settings.API_PREFIX)
 
 
 @app.get("/health", tags=["health"])

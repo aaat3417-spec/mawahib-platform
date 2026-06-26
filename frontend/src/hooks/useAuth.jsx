@@ -5,20 +5,19 @@ import { api } from "../services/api";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem("mawahib_user");
-    return stored ? JSON.parse(stored) : null;
-  });
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     function expireSession() {
+      localStorage.removeItem("mawahib_token");
       setUser(null);
       setLoading(false);
     }
 
     window.addEventListener("mawahib:auth-expired", expireSession);
     const token = localStorage.getItem("mawahib_token");
+    localStorage.removeItem("mawahib_user");
     if (!token) {
       setLoading(false);
       return () => window.removeEventListener("mawahib:auth-expired", expireSession);
@@ -27,7 +26,6 @@ export function AuthProvider({ children }) {
       .get("/auth/me")
       .then(({ data }) => {
         setUser(data);
-        localStorage.setItem("mawahib_user", JSON.stringify(data));
       })
       .catch(() => {
         localStorage.removeItem("mawahib_token");
@@ -39,6 +37,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function login(email, password) {
+    setUser(null);
+    localStorage.removeItem("mawahib_token");
+    localStorage.removeItem("mawahib_user");
     const form = new FormData();
     form.append("username", email);
     form.append("password", password);
@@ -46,16 +47,17 @@ export function AuthProvider({ children }) {
     localStorage.setItem("mawahib_token", data.access_token);
     const me = await api.get("/auth/me");
     setUser(me.data);
-    localStorage.setItem("mawahib_user", JSON.stringify(me.data));
     return me.data;
   }
 
   async function setupOwner(payload) {
+    setUser(null);
+    localStorage.removeItem("mawahib_token");
+    localStorage.removeItem("mawahib_user");
     const { data } = await api.post("/auth/setup-owner", payload);
     localStorage.setItem("mawahib_token", data.access_token);
     const me = await api.get("/auth/me");
     setUser(me.data);
-    localStorage.setItem("mawahib_user", JSON.stringify(me.data));
     return me.data;
   }
 
@@ -63,6 +65,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("mawahib_token");
     localStorage.removeItem("mawahib_user");
     setUser(null);
+    window.dispatchEvent(new Event("mawahib:logout"));
   }
 
   const value = useMemo(

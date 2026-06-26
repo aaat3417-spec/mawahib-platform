@@ -1,6 +1,6 @@
-# Render Deployment Guide
+# Render Production Deployment Guide
 
-This guide deploys Mawahib Community Platform on Render with SQLite for free-plan testing. For real production with active students, PostgreSQL is still the recommended database.
+This deployment guide treats PostgreSQL as the primary production database for Mawahib Community Platform.
 
 ## Backend Web Service
 
@@ -19,13 +19,40 @@ pip install -r requirements.txt
 sh start_render.sh
 ```
 
-The start script runs `python -m app.db.init_db` before `uvicorn`. SQLite tables are created automatically because `DATABASE_URL` starts with `sqlite`. Alembic is intentionally not run for SQLite free-plan deployments because SQLite cannot apply every ALTER/constraint migration safely.
+For PostgreSQL, `start_render.sh` runs:
 
-### Required Persistent Disk for SQLite
+```bash
+alembic upgrade head
+python -m app.db.init_db
+uvicorn app.main:app --host 0.0.0.0 --port "$PORT"
+```
 
-If you use SQLite on Render, do **not** use `sqlite:///./mawahib.db` for real data. Render instance files can disappear after restarts, rebuilds, or instance moves. This is the most likely reason previously-created users disappeared.
+This is migration-safe: Alembic applies schema migrations and `init_db` only seeds missing defaults. It does not drop tables, delete users, reset passwords, or recreate existing records.
 
-Add a Persistent Disk to the backend service:
+## Render PostgreSQL
+
+Create a Render PostgreSQL database and connect it to the backend service.
+
+Recommended backend environment:
+
+```text
+DATABASE_URL=<Render PostgreSQL internal connection string>
+PYTHON_VERSION=3.11.11
+ENVIRONMENT=production
+DOCS_ENABLED=false
+SECRET_KEY=<long generated secret>
+INITIAL_OWNER_EMAIL=owner@mawahib.com
+INITIAL_OWNER_PASSWORD=<strong first-login password>
+UPLOAD_DIR=/var/data/uploads
+CORS_ORIGINS=["http://localhost:5173","http://localhost:8080","https://mawahib-platform-1.onrender.com"]
+ALLOWED_HOSTS=localhost,127.0.0.1,mawahib-platform.onrender.com,mawahib-platform-1.onrender.com
+```
+
+The included `render.yaml` now defines a PostgreSQL database named `mawahib-postgres` and injects its connection string into `DATABASE_URL`.
+
+## Upload Disk
+
+Even with PostgreSQL, uploaded files still need durable storage. Keep a Persistent Disk on the backend service:
 
 ```text
 Name: mawahib-data
@@ -33,47 +60,30 @@ Mount Path: /var/data
 Size: 1 GB or higher
 ```
 
-Then store both SQLite and uploads under that disk:
+Set:
 
 ```text
-DATABASE_URL=sqlite:////var/data/mawahib.db
 UPLOAD_DIR=/var/data/uploads
 ```
 
-### Backend Environment
+## SQLite Demo Only
+
+SQLite is acceptable only for local/demo testing. On Render, SQLite must never use instance-local paths such as:
+
+```text
+sqlite:///./mawahib.db
+```
+
+If you temporarily test SQLite on Render, it must use Persistent Disk:
 
 ```text
 DATABASE_URL=sqlite:////var/data/mawahib.db
-PYTHON_VERSION=3.11.11
-SECRET_KEY=replace-with-a-long-random-secret-key
-INITIAL_OWNER_EMAIL=owner@mawahib.com
-INITIAL_OWNER_PASSWORD=ChangeMe123!
 UPLOAD_DIR=/var/data/uploads
-CORS_ORIGINS=["http://localhost:5173","http://localhost:8080","https://mawahib-platform-1.onrender.com"]
-ALLOWED_HOSTS=localhost,127.0.0.1,mawahib-platform.onrender.com,mawahib-platform-1.onrender.com
-DOCS_ENABLED=true
 ENVIRONMENT=development
+DOCS_ENABLED=true
 ```
 
-Production note: replace `SECRET_KEY` with a long random value before real use.
-
-SQLite on Render is suitable only for testing unless it is backed by a Persistent Disk. For a real launch, use managed PostgreSQL and run Alembic migrations instead of SQLite `create_all`.
-
-Do not keep the default owner password after first login. Create a strong owner password and rotate `SECRET_KEY` before real student data is entered.
-
-### Backend Checks
-
-```text
-https://mawahib-platform.onrender.com/
-https://mawahib-platform.onrender.com/health
-https://mawahib-platform.onrender.com/docs
-```
-
-Expected health response:
-
-```json
-{"status":"ok","service":"Mawahib Community Platform"}
-```
+The backend now blocks `ENVIRONMENT=production` when SQLite is configured with a non-persistent path.
 
 ## Frontend Static Site
 
@@ -91,77 +101,64 @@ npm install && npm run build
 dist
 ```
 
-### Frontend Environment
+Frontend environment:
 
 ```text
 VITE_API_URL=https://mawahib-platform.onrender.com
 ```
 
-This value is required so the deployed Vite app calls the deployed FastAPI service instead of using local `/api`.
-
-### Frontend React Router Rewrite
-
-The frontend now uses hash-based routing, so in-app links look like `/#/tasks` and survive browser refreshes even when the static host does not rewrite nested routes correctly.
-Keep the rewrite below as an extra safety net for old direct links such as `/tasks` or `/leaderboard`.
-
-For an existing manually-created Render Static Site, add this rule in the frontend service:
+Add this Static Site rewrite for refresh-safe routes:
 
 ```text
-Settings -> Redirects/Rewrites -> Add Rule
 Source: /*
 Destination: /index.html
 Action: Rewrite
 ```
 
-This prevents `Not Found` for direct legacy refreshes on routes such as `/leaderboard`, `/tasks`, `/profile`, and `/admin`.
+The app also uses hash routing, so routes such as `/#/tasks` survive static hosting refreshes.
 
-## Login Test
+## Health and Data Checks
 
-Open:
-
-```text
-https://mawahib-platform-1.onrender.com
-```
-
-Login with:
+Public:
 
 ```text
-owner@mawahib.com
-ChangeMe123!
+https://mawahib-platform.onrender.com/health
 ```
 
-Expected result: login succeeds without Network Error, CORS error, Invalid host header, or missing database table errors.
-
-## Uploads
-
-Submission files should be stored under `/var/data/uploads` on Render when SQLite/Persistent Disk is used. They are not served as public static files. They are downloaded through authenticated API routes, so students can access only their own files and reviewers/admins can access only files allowed by their role.
-
-Allowed submission upload types:
+Admin-only:
 
 ```text
-png, jpg, jpeg, pdf, txt, md, zip
+GET /api/admin/data-health
+GET /api/admin/export
 ```
 
-Blocked examples:
+`/api/admin/data-health` reports database type, masked database details, environment, uptime, startup time, and row counts for users, teams, tasks, submissions, announcements, and registration requests.
+
+## Registration Requests
+
+New student signup is now request-based:
 
 ```text
-exe, sh, bat, js, html, php
+POST /api/registration/request
 ```
+
+Admins manage requests:
+
+```text
+GET  /api/admin/registration-requests
+POST /api/admin/registration-requests/{id}/accept
+POST /api/admin/registration-requests/{id}/reject
+POST /api/admin/registration-requests/{id}/request-changes
+POST /api/admin/teams/{id}/regenerate-code
+PATCH /api/admin/teams/{id}/code-status
+```
+
+Passwords for pending requests are hashed. Plain passwords are never stored.
 
 ## Troubleshooting
 
-- `sh: cannot open start_render.sh`: redeploy the latest Git commit and confirm Root Directory is `backend`.
-- `Not Found` after refreshing `/tasks` or `/leaderboard`: add the Static Site rewrite `/* -> /index.html`.
-- `Network Error` on login: confirm frontend `VITE_API_URL=https://mawahib-platform.onrender.com`, backend CORS includes `https://mawahib-platform-1.onrender.com`, then clear build cache and redeploy frontend.
-- `users disappeared after restart`: confirm the backend has a Persistent Disk mounted at `/var/data`, then confirm `DATABASE_URL=sqlite:////var/data/mawahib.db` and `UPLOAD_DIR=/var/data/uploads`.
-- `no such table`: confirm backend `DATABASE_URL=sqlite:////var/data/mawahib.db`, the disk is mounted, and Start Command is `sh start_render.sh`.
-
-## Backup / Export
-
-For SQLite test deployments, export data regularly:
-
-```bash
-DATABASE_URL=sqlite:////var/data/mawahib.db python scripts/export_data.py --output backups/mawahib-export.json
-```
-
-For production PostgreSQL, use managed database backups plus scheduled `pg_dump`.
+- Users disappear after restart: confirm the backend is using PostgreSQL. If testing SQLite, confirm `DATABASE_URL=sqlite:////var/data/mawahib.db` and that the disk is mounted at `/var/data`.
+- Someone sees another user: clear old browser storage once, redeploy this version, then confirm `/api/auth/me` returns the correct user after every login. The frontend no longer trusts `mawahib_user` from localStorage.
+- `Invalid host header`: confirm `ALLOWED_HOSTS` includes the backend and frontend Render domains.
+- CORS/network error: confirm `CORS_ORIGINS` includes `https://mawahib-platform-1.onrender.com` and frontend `VITE_API_URL` points to the backend origin.
+- Missing tables on PostgreSQL: confirm Start Command is `sh start_render.sh` so Alembic migrations run.

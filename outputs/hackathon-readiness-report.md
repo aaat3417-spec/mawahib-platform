@@ -167,7 +167,7 @@ Start Command: sh start_render.sh
 Backend env:
 
 ```text
-DATABASE_URL=sqlite:////var/data/mawahib.db
+DATABASE_URL=<Render PostgreSQL internal connection string>
 UPLOAD_DIR=/var/data/uploads
 PYTHON_VERSION=3.11.11
 INITIAL_OWNER_EMAIL=owner@mawahib.com

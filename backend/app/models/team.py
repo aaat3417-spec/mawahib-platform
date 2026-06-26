@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.time import utc_now
@@ -15,7 +15,10 @@ class Team(Base):
     name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False, index=True)
     description: Mapped[str] = mapped_column(Text, default="", nullable=False)
     leader_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    team_code: Mapped[str | None] = mapped_column(String(24), unique=True, nullable=True, index=True)
+    is_code_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     leader = relationship("User", foreign_keys=[leader_id], post_update=True)
     members = relationship("User", back_populates="team", foreign_keys="User.team_id")
+    registration_requests = relationship("RegistrationRequest", back_populates="team")

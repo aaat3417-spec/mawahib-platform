@@ -31,9 +31,11 @@ export default function AdminPanel() {
   const [teams, setTeams] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [submissions, setSubmissions] = useState([]);
+  const [registrationRequests, setRegistrationRequests] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [badges, setBadges] = useState([]);
   const [statistics, setStatistics] = useState(null);
+  const [dataHealth, setDataHealth] = useState(null);
   const [userForm, setUserForm] = useState(blankUser);
   const [taskForm, setTaskForm] = useState(blankTask);
   const [announcementForm, setAnnouncementForm] = useState(blankAnnouncement);
@@ -58,21 +60,25 @@ export default function AdminPanel() {
     setLoadError("");
     Promise.all([
       api.get("/users"),
-      api.get("/teams"),
+      api.get("/admin/teams"),
       api.get("/tasks"),
       api.get("/submissions"),
+      api.get("/admin/registration-requests"),
       api.get("/announcements"),
       api.get("/badges"),
-      api.get("/statistics/overview")
+      api.get("/statistics/overview"),
+      api.get("/admin/data-health")
     ])
-      .then(([usersResponse, teamsResponse, tasksResponse, submissionsResponse, announcementsResponse, badgesResponse, statisticsResponse]) => {
+      .then(([usersResponse, teamsResponse, tasksResponse, submissionsResponse, requestsResponse, announcementsResponse, badgesResponse, statisticsResponse, healthResponse]) => {
         setUsers(usersResponse.data);
         setTeams(teamsResponse.data);
         setTasks(tasksResponse.data);
         setSubmissions(submissionsResponse.data);
+        setRegistrationRequests(requestsResponse.data);
         setAnnouncements(announcementsResponse.data);
         setBadges(badgesResponse.data);
         setStatistics(statisticsResponse.data);
+        setDataHealth(healthResponse.data);
       })
       .catch((err) => {
         const text = apiErrorMessage(err);
@@ -330,6 +336,77 @@ export default function AdminPanel() {
     }
   }
 
+  async function decideRegistration(requestId, action, note = "") {
+    setBusyAction(`registration-${action}-${requestId}`);
+    try {
+      const body = action === "accept" ? {} : { admin_note: note };
+      await api.post(`/admin/registration-requests/${requestId}/${action}`, body);
+      showMessage("success", action === "accept" ? t("userCreated") : t("save"));
+      load();
+    } catch (err) {
+      showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function regenerateTeamCode(teamId) {
+    setBusyAction(`regenerate-code-${teamId}`);
+    try {
+      await api.post(`/admin/teams/${teamId}/regenerate-code`);
+      showMessage("success", t("teamUpdated"));
+      load();
+    } catch (err) {
+      showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function toggleTeamCode(team) {
+    setBusyAction(`code-status-${team.id}`);
+    try {
+      await api.patch(`/admin/teams/${team.id}/code-status`, { is_code_active: !team.is_code_active });
+      showMessage("success", t("teamUpdated"));
+      load();
+    } catch (err) {
+      showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function copyTeamCode(code) {
+    if (!code) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(code);
+      showMessage("success", t("copied"));
+    } catch {
+      showMessage("error", code);
+    }
+  }
+
+  async function exportAdminData() {
+    setBusyAction("export-data");
+    try {
+      const { data } = await api.get("/admin/export");
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `mawahib-export-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showMessage("success", t("exportData"));
+    } catch (err) {
+      showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   const normalizedSearch = userSearch.trim().toLowerCase();
   const displayedUsers = normalizedSearch
     ? users.filter((user) => {
@@ -363,6 +440,7 @@ export default function AdminPanel() {
           ["tasks", t("tasks")],
           ["announcements", t("announcements")],
           ["submissions", t("adminSubmissions")],
+          ["registration", t("registrationRequests")],
           ["statistics", t("statistics")]
         ].map(([key, label]) => (
           <button
@@ -531,6 +609,14 @@ export default function AdminPanel() {
                   <div>
                     <input className="input font-semibold" value={team.name} onChange={(event) => setTeams(teams.map((item) => item.id === team.id ? { ...item, name: event.target.value } : item))} />
                     <p className="text-sm text-slate-500">{team.member_count} {t("members")}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="rounded-lg bg-white px-3 py-2 font-mono text-sm font-bold text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                        {team.team_code || "-"}
+                      </span>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${team.is_code_active ? "bg-teal-100 text-teal-800 dark:bg-teal-500/15 dark:text-teal-200" : "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200"}`}>
+                        {team.is_code_active ? t("codeActive") : t("codeDisabled")}
+                      </span>
+                    </div>
                   </div>
                   <div className="grid w-full gap-2 sm:w-auto sm:min-w-56">
                     <select className="input" defaultValue="" disabled={busyAction === `promote-${team.id}`} onChange={(event) => event.target.value && promote(team.id, event.target.value)}>
@@ -539,6 +625,15 @@ export default function AdminPanel() {
                     </select>
                     <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={busyAction === `team-${team.id}`} onClick={() => saveTeam(team)}>
                       {busyAction === `team-${team.id}` ? t("savingEllipsis") : t("saveTeam")}
+                    </button>
+                    <button className="btn-secondary" type="button" onClick={() => copyTeamCode(team.team_code)}>
+                      {t("copyCode")}
+                    </button>
+                    <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={busyAction === `regenerate-code-${team.id}`} onClick={() => regenerateTeamCode(team.id)}>
+                      {t("regenerateCode")}
+                    </button>
+                    <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={busyAction === `code-status-${team.id}`} onClick={() => toggleTeamCode(team)}>
+                      {team.is_code_active ? t("codeDisabled") : t("codeActive")}
                     </button>
                   </div>
                 </div>
@@ -626,8 +721,50 @@ export default function AdminPanel() {
             {submissions.length === 0 && <p className="p-4 text-sm text-slate-500">{t("noSubmissionsYet")}</p>}
           </div>
         </div>}
+        {activeSection === "registration" && <div className="panel p-5 xl:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-bold">{t("registrationRequests")}</h2>
+              <p className="mt-1 text-sm text-slate-500">{t("registrationBody")}</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3">
+            {registrationRequests.map((request) => (
+              <RegistrationRequestCard
+                key={request.id}
+                busyAction={busyAction}
+                formatDateTime={formatDateTime}
+                request={request}
+                t={t}
+                onDecision={decideRegistration}
+              />
+            ))}
+            {registrationRequests.length === 0 && <p className="text-sm text-slate-500">{t("noRegistrationRequests")}</p>}
+          </div>
+        </div>}
         {activeSection === "statistics" && <div className="panel p-5 xl:col-span-2">
-          <h2 className="font-bold">{t("topMembers")}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-bold">{t("dataHealth")}</h2>
+            <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={busyAction === "export-data"} onClick={exportAdminData}>
+              {t("exportData")}
+            </button>
+          </div>
+          {dataHealth && (
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800">
+                <p className="label">{t("database")}</p>
+                <p className="mt-1 font-bold">{dataHealth.database.type}</p>
+                <p className="mt-1 text-sm text-slate-500">{dataHealth.database.persistent === false ? t("notPersistent") : t("persistent")}</p>
+              </div>
+              {Object.entries(dataHealth.counts).map(([key, value]) => (
+                <div key={key} className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800">
+                  <p className="label">{key.replaceAll("_", " ")}</p>
+                  <p className="mt-1 text-2xl font-bold">{value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <h2 className="mt-6 font-bold">{t("topMembers")}</h2>
           <div className="mt-4 space-y-3">
             {statistics?.top_members?.map((member) => (
               <div key={member.id} className="flex items-center justify-between rounded-lg bg-slate-50 p-4 dark:bg-slate-800">
@@ -642,6 +779,53 @@ export default function AdminPanel() {
       )}
     </>
   );
+}
+
+function RegistrationRequestCard({ request, busyAction, formatDateTime, t, onDecision }) {
+  const [note, setNote] = useState(request.admin_note || "");
+  const isPending = request.status === "Pending" || request.status === "Changes Requested";
+  return (
+    <article className="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-100 dark:bg-slate-800 dark:ring-slate-700">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-bold">{request.full_name}</p>
+          <p className="mt-1 text-sm text-slate-500">{request.email} · {request.team_name || t("noTeam")}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">{formatDateTime(request.created_at)}</p>
+        </div>
+        <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+          {registrationStatusLabel(request.status, t)}
+        </span>
+      </div>
+      {request.bio && <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{request.bio}</p>}
+      <textarea
+        className="input mt-3 min-h-20"
+        placeholder={t("adminNote")}
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+      />
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={!isPending || busyAction === `registration-accept-${request.id}`} onClick={() => onDecision(request.id, "accept")}>
+          {t("accept")}
+        </button>
+        <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={request.status === "Accepted" || busyAction === `registration-reject-${request.id}`} onClick={() => onDecision(request.id, "reject", note)}>
+          {t("reject")}
+        </button>
+        <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={request.status === "Accepted" || busyAction === `registration-request-changes-${request.id}`} onClick={() => onDecision(request.id, "request-changes", note)}>
+          {t("requestChanges")}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function registrationStatusLabel(status, t) {
+  const labels = {
+    Pending: "registrationPending",
+    Accepted: "registrationAccepted",
+    Rejected: "registrationRejected",
+    "Changes Requested": "registrationChangesRequested"
+  };
+  return t(labels[status] || "registrationPending");
 }
 
 function AdminForm({ title, children, onSubmit, feedback = "", busy = false }) {
