@@ -1,18 +1,27 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import Alert from "../components/Alert.jsx";
+import LoadingPanel from "../components/LoadingPanel.jsx";
 import StatCard from "../components/StatCard.jsx";
-import { api } from "../services/api";
+import { api, apiErrorMessage } from "../services/api";
 
 export default function Dashboard() {
   const [dashboard, setDashboard] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get("/statistics/dashboard").then(({ data }) => setDashboard(data));
+    api.get("/statistics/dashboard")
+      .then(({ data }) => setDashboard(data))
+      .catch((err) => setError(apiErrorMessage(err)));
   }, []);
 
+  if (error) {
+    return <Alert tone="error">{error}</Alert>;
+  }
+
   if (!dashboard) {
-    return <div className="panel animate-pulse p-6">Loading dashboard...</div>;
+    return <LoadingPanel label="Loading dashboard..." />;
   }
 
   const weeklyTotal = dashboard.weekly_progress.reduce((sum, day) => sum + day.submissions, 0);

@@ -1,16 +1,30 @@
 import { useEffect, useState } from "react";
 
+import Alert from "../components/Alert.jsx";
+import LoadingPanel from "../components/LoadingPanel.jsx";
 import PageHeader from "../components/PageHeader.jsx";
-import { api } from "../services/api";
+import { api, apiErrorMessage } from "../services/api";
 
 export default function Leaderboard() {
   const [period, setPeriod] = useState("all");
   const [students, setStudents] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get("/leaderboard/students", { params: { period } }).then(({ data }) => setStudents(data));
-    api.get("/leaderboard/teams", { params: { period } }).then(({ data }) => setTeams(data));
+    setLoading(true);
+    setError("");
+    Promise.all([
+      api.get("/leaderboard/students", { params: { period } }),
+      api.get("/leaderboard/teams", { params: { period } })
+    ])
+      .then(([studentResponse, teamResponse]) => {
+        setStudents(studentResponse.data);
+        setTeams(teamResponse.data);
+      })
+      .catch((err) => setError(apiErrorMessage(err)))
+      .finally(() => setLoading(false));
   }, [period]);
 
   return (
@@ -26,6 +40,10 @@ export default function Leaderboard() {
           </select>
         }
       />
+      {error && <Alert tone="error" className="mb-4">{error}</Alert>}
+      {loading && <LoadingPanel label="Loading leaderboard..." />}
+      {!loading && !error && (
+      <>
       <section className="mb-6 rounded-lg bg-slate-950 p-5 text-white shadow-soft dark:bg-white dark:text-slate-950">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -46,6 +64,8 @@ export default function Leaderboard() {
         <RankingPanel title="Top students" rows={students} nameKey="full_name" tone="student" />
         <RankingPanel title="Top teams" rows={teams} nameKey="name" tone="team" />
       </div>
+      </>
+      )}
     </>
   );
 }

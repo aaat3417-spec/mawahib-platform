@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
+import Alert from "../components/Alert.jsx";
+import EmptyState from "../components/EmptyState.jsx";
+import LoadingPanel from "../components/LoadingPanel.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
 import { api, apiErrorMessage } from "../services/api";
@@ -10,17 +13,20 @@ export default function Tasks() {
   const [category, setCategory] = useState("");
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ link_url: "", github_url: "", notes: "", file: null });
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(null);
   const [modalMessage, setModalMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    loadTasks();
-  }, []);
-
   function loadTasks() {
+    setLoading(true);
+    setError("");
     const params = category ? { category } : {};
-    api.get("/tasks", { params }).then(({ data }) => setTasks(data));
+    api.get("/tasks", { params })
+      .then(({ data }) => setTasks(data))
+      .catch((err) => setError(apiErrorMessage(err)))
+      .finally(() => setLoading(false));
   }
 
   useEffect(() => {
@@ -37,8 +43,13 @@ export default function Tasks() {
 
   async function submitTask(event) {
     event.preventDefault();
-    setMessage("");
+    setMessage(null);
     setModalMessage("");
+    const validationError = validateSubmissionForm(form);
+    if (validationError) {
+      setModalMessage(validationError);
+      return;
+    }
     setSubmitting(true);
     const payload = new FormData();
     payload.append("link_url", form.link_url);
@@ -49,7 +60,7 @@ export default function Tasks() {
     }
     try {
       await api.post(`/submissions/tasks/${selected.id}`, payload);
-      setMessage("Submission uploaded successfully.");
+      setMessage({ tone: "success", text: "Submission uploaded successfully." });
       setSelected(null);
       setForm({ link_url: "", github_url: "", notes: "", file: null });
       loadTasks();
@@ -74,9 +85,17 @@ export default function Tasks() {
           </select>
         }
       />
-      {message && <p className="mb-4 rounded-lg bg-teal-50 px-4 py-3 text-sm text-teal-800 dark:bg-teal-500/10 dark:text-teal-200">{message}</p>}
+      {message && <Alert tone={message.tone} className="mb-4">{message.text}</Alert>}
+      {error && <Alert tone="error" className="mb-4">{error}</Alert>}
+      {loading && <LoadingPanel label="Loading tasks..." />}
+      {!loading && !error && tasks.length === 0 && (
+        <EmptyState
+          title="No tasks available"
+          body={category ? "No tasks match this category yet. Try all categories or check back later." : "Tasks created by admins and team leaders will appear here."}
+        />
+      )}
       <div className="space-y-6">
-        {Object.entries(grouped).map(([group, groupTasks]) => (
+        {!loading && !error && Object.entries(grouped).map(([group, groupTasks]) => (
           <section key={group}>
             <h2 className="mb-3 text-lg font-bold">{group}</h2>
             <div className="grid gap-4 lg:grid-cols-2">
@@ -104,15 +123,10 @@ export default function Tasks() {
                       ))}
                     </div>
                   )}
-                  <button
-                    className="btn-primary mt-5"
-                    onClick={() => {
-                      setSelected(task);
-                      setModalMessage("");
-                    }}
-                  >
-                    Submit work
-                  </button>
+                  <TaskActionButton task={task} onClick={() => {
+                    setSelected(task);
+                    setModalMessage("");
+                  }} />
                 </article>
               ))}
             </div>
@@ -122,7 +136,7 @@ export default function Tasks() {
 
       {selected && (
         <div className="fixed inset-0 z-30 grid place-items-center overflow-y-auto bg-slate-950/70 p-4">
-          <form className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-6 shadow-soft dark:bg-slate-900" onSubmit={submitTask}>
+          <form className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-lg bg-white p-6 shadow-soft dark:bg-slate-900" onSubmit={submitTask} noValidate>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="label">Submit task</p>
@@ -149,4 +163,42 @@ export default function Tasks() {
       )}
     </>
   );
+}
+
+function TaskActionButton({ task, onClick }) {
+  if (task.submission_status === "Accepted") {
+    return <button className="btn-secondary mt-5 w-full cursor-not-allowed opacity-70" type="button" disabled>Accepted</button>;
+  }
+  if (task.submission_status === "Pending") {
+    return <button className="btn-secondary mt-5 w-full cursor-not-allowed opacity-70" type="button" disabled>Awaiting review</button>;
+  }
+  return (
+    <button className="btn-primary mt-5 w-full sm:w-auto" type="button" onClick={onClick}>
+      {task.submission_status === "Needs Revision" || task.submission_status === "Rejected" ? "Resubmit work" : "Submit work"}
+    </button>
+  );
+}
+
+function validateSubmissionForm(form) {
+  const hasContent = Boolean(form.file || form.notes.trim() || form.link_url.trim() || form.github_url.trim());
+  if (!hasContent) {
+    return "Add a note, file, link, or GitHub repository before submitting.";
+  }
+  for (const [label, value] of [["Project link", form.link_url], ["GitHub repository", form.github_url]]) {
+    if (!value.trim()) {
+      continue;
+    }
+    try {
+      const parsed = new URL(value);
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        return `${label} must start with http:// or https://.`;
+      }
+      if (label === "GitHub repository" && !parsed.hostname.toLowerCase().includes("github.com")) {
+        return "GitHub repository must be a github.com URL.";
+      }
+    } catch {
+      return `${label} is not a valid URL.`;
+    }
+  }
+  return "";
 }

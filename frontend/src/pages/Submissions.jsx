@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 
+import Alert from "../components/Alert.jsx";
+import EmptyState from "../components/EmptyState.jsx";
+import LoadingPanel from "../components/LoadingPanel.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
@@ -11,14 +14,22 @@ export default function Submissions() {
   const [submissions, setSubmissions] = useState([]);
   const [reviewing, setReviewing] = useState(null);
   const [review, setReview] = useState({ status: "Accepted", feedback: "", excellent_work: false, helping_members_points: false });
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [savingReview, setSavingReview] = useState(false);
 
   useEffect(() => {
     load();
   }, []);
 
   function load() {
-    api.get("/submissions").then(({ data }) => setSubmissions(data));
+    setLoading(true);
+    setError("");
+    api.get("/submissions")
+      .then(({ data }) => setSubmissions(data))
+      .catch((err) => setError(apiErrorMessage(err)))
+      .finally(() => setLoading(false));
   }
 
   function openReview(item) {
@@ -33,13 +44,17 @@ export default function Submissions() {
 
   async function submitReview(event) {
     event.preventDefault();
+    setSavingReview(true);
+    setMessage(null);
     try {
       await api.patch(`/submissions/${reviewing.id}/review`, review);
-      setMessage("Review saved.");
+      setMessage({ tone: "success", text: "Review saved." });
       setReviewing(null);
       load();
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      setMessage({ tone: "error", text: apiErrorMessage(err) });
+    } finally {
+      setSavingReview(false);
     }
   }
 
@@ -53,17 +68,37 @@ export default function Submissions() {
       window.open(url, "_blank", "noopener,noreferrer");
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (err) {
-      setMessage(apiErrorMessage(err));
+      setMessage({ tone: "error", text: apiErrorMessage(err) });
     }
   }
 
   return (
     <>
       <PageHeader title="Submissions" eyebrow="Review status and feedback" />
-      {message && <p className="mb-4 rounded-lg bg-slate-100 px-4 py-3 text-sm dark:bg-slate-800">{message}</p>}
+      {message && <Alert tone={message.tone} className="mb-4">{message.text}</Alert>}
+      {error && <Alert tone="error" className="mb-4">{error}</Alert>}
+      {loading && <LoadingPanel label="Loading submissions..." />}
+      {!loading && !error && submissions.length === 0 && (
+        <EmptyState
+          title={canReview ? "No submissions to review" : "No submissions yet"}
+          body={canReview ? "Student work will appear here as soon as it is submitted." : "Submit a task from the Tasks page and your review status will appear here."}
+        />
+      )}
+      {!loading && !error && submissions.length > 0 && (
       <div className="panel overflow-hidden">
+        <div className="grid gap-3 p-3 md:hidden">
+          {submissions.map((item) => (
+            <SubmissionCard
+              key={item.id}
+              item={item}
+              canReview={canReview}
+              onReview={() => openReview(item)}
+              onFile={() => openFile(item)}
+            />
+          ))}
+        </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+          <table className="hidden min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800 md:table">
             <thead className="bg-slate-50 dark:bg-slate-800">
               <tr>
                 {["Task", "Student", "Team", "Status", "Submitted", "Proof", "Action"].map((heading) => (
@@ -99,6 +134,7 @@ export default function Submissions() {
           </table>
         </div>
       </div>
+      )}
 
       {reviewing && (
         <div className="fixed inset-0 z-30 grid place-items-center overflow-y-auto bg-slate-950/70 p-4">
@@ -124,10 +160,41 @@ export default function Submissions() {
                 Helped members bonus (+20)
               </label>
             </div>
-            <button className="btn-primary mt-5 w-full">Save review</button>
+            <button className="btn-primary mt-5 w-full disabled:cursor-not-allowed disabled:opacity-60" disabled={savingReview}>
+              {savingReview ? "Saving review..." : "Save review"}
+            </button>
           </form>
         </div>
       )}
     </>
+  );
+}
+
+function SubmissionCard({ item, canReview, onReview, onFile }) {
+  return (
+    <article className="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-100 dark:bg-slate-800 dark:ring-slate-700">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-bold">{item.task_title}</p>
+          <p className="mt-1 text-sm text-slate-500">{item.student_name} · {item.team_name || "No team"}</p>
+        </div>
+        <StatusBadge status={item.status} />
+      </div>
+      <p className="mt-3 text-xs font-semibold text-slate-500">{new Date(item.submitted_at).toLocaleString()}</p>
+      <div className="mt-4 flex flex-wrap gap-2 text-sm font-semibold">
+        {item.link_url && <a className="rounded-lg bg-white px-3 py-2 text-teal-700 dark:bg-slate-900 dark:text-teal-300" href={item.link_url} target="_blank" rel="noreferrer">Link</a>}
+        {item.github_url && <a className="rounded-lg bg-white px-3 py-2 text-teal-700 dark:bg-slate-900 dark:text-teal-300" href={item.github_url} target="_blank" rel="noreferrer">GitHub</a>}
+        {item.file_url && <button className="rounded-lg bg-white px-3 py-2 text-teal-700 dark:bg-slate-900 dark:text-teal-300" type="button" onClick={onFile}>File</button>}
+      </div>
+      <div className="mt-4">
+        {canReview ? (
+          <button className="btn-secondary w-full" type="button" onClick={onReview}>Review</button>
+        ) : (
+          <p className="rounded-lg bg-white p-3 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+            {item.feedback || "Awaiting review"}
+          </p>
+        )}
+      </div>
+    </article>
   );
 }

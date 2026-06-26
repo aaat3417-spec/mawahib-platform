@@ -12,10 +12,16 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    function expireSession() {
+      setUser(null);
+      setLoading(false);
+    }
+
+    window.addEventListener("mawahib:auth-expired", expireSession);
     const token = localStorage.getItem("mawahib_token");
     if (!token) {
       setLoading(false);
-      return;
+      return () => window.removeEventListener("mawahib:auth-expired", expireSession);
     }
     api
       .get("/auth/me")
@@ -29,6 +35,7 @@ export function AuthProvider({ children }) {
         setUser(null);
       })
       .finally(() => setLoading(false));
+    return () => window.removeEventListener("mawahib:auth-expired", expireSession);
   }, []);
 
   async function login(email, password) {
@@ -82,4 +89,3 @@ export function useAuth() {
   }
   return context;
 }
-

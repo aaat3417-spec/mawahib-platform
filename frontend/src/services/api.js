@@ -28,6 +28,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem("mawahib_token");
       localStorage.removeItem("mawahib_user");
+      window.dispatchEvent(new Event("mawahib:auth-expired"));
     }
     return Promise.reject(error);
   }

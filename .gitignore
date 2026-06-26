@@ -14,3 +14,5 @@ uploads/**/*.jpg
 uploads/**/*.jpeg
 uploads/**/*.webp
 !uploads/**/.gitkeep
+backend/uploads/
+*.db

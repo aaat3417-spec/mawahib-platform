@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import Alert from "../components/Alert.jsx";
+import LoadingPanel from "../components/LoadingPanel.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 import StatCard from "../components/StatCard.jsx";
 import { api, apiErrorMessage } from "../services/api";
@@ -37,18 +39,38 @@ export default function AdminPanel() {
   const [message, setMessage] = useState(null);
   const [taskError, setTaskError] = useState("");
   const [busyAction, setBusyAction] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     load();
   }, []);
 
   function load() {
-    api.get("/users").then(({ data }) => setUsers(data));
-    api.get("/teams").then(({ data }) => setTeams(data));
-    api.get("/tasks").then(({ data }) => setTasks(data));
-    api.get("/announcements").then(({ data }) => setAnnouncements(data));
-    api.get("/badges").then(({ data }) => setBadges(data));
-    api.get("/statistics/overview").then(({ data }) => setStatistics(data));
+    setLoading(true);
+    setLoadError("");
+    Promise.all([
+      api.get("/users"),
+      api.get("/teams"),
+      api.get("/tasks"),
+      api.get("/announcements"),
+      api.get("/badges"),
+      api.get("/statistics/overview")
+    ])
+      .then(([usersResponse, teamsResponse, tasksResponse, announcementsResponse, badgesResponse, statisticsResponse]) => {
+        setUsers(usersResponse.data);
+        setTeams(teamsResponse.data);
+        setTasks(tasksResponse.data);
+        setAnnouncements(announcementsResponse.data);
+        setBadges(badgesResponse.data);
+        setStatistics(statisticsResponse.data);
+      })
+      .catch((err) => {
+        const text = apiErrorMessage(err);
+        setLoadError(text);
+        showMessage("error", text);
+      })
+      .finally(() => setLoading(false));
   }
 
   function showMessage(type, text) {
@@ -58,6 +80,7 @@ export default function AdminPanel() {
   async function createUser(event) {
     event.preventDefault();
     setMessage(null);
+    setBusyAction("create-user");
     try {
       await api.post("/users", { ...userForm, team_id: userForm.team_id ? Number(userForm.team_id) : null });
       setUserForm(blankUser);
@@ -65,6 +88,8 @@ export default function AdminPanel() {
       load();
     } catch (err) {
       showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
     }
   }
 
@@ -101,6 +126,7 @@ export default function AdminPanel() {
 
   async function createAnnouncement(event) {
     event.preventDefault();
+    setBusyAction("create-announcement");
     try {
       await api.post("/announcements", {
         ...announcementForm,
@@ -112,11 +138,14 @@ export default function AdminPanel() {
       load();
     } catch (err) {
       showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
     }
   }
 
   async function createTeam(event) {
     event.preventDefault();
+    setBusyAction("create-team");
     try {
       await api.post("/teams", teamForm);
       setTeamForm({ name: "", description: "" });
@@ -124,20 +153,26 @@ export default function AdminPanel() {
       load();
     } catch (err) {
       showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
     }
   }
 
   async function promote(teamId, userId) {
+    setBusyAction(`promote-${teamId}`);
     try {
       await api.post(`/teams/${teamId}/leader/${userId}`);
       showMessage("success", "Team leader promoted.");
       load();
     } catch (err) {
       showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
     }
   }
 
   async function saveUser(user) {
+    setBusyAction(`user-${user.id}`);
     try {
       await api.patch(`/users/${user.id}`, {
         full_name: user.full_name,
@@ -149,20 +184,26 @@ export default function AdminPanel() {
       load();
     } catch (err) {
       showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
     }
   }
 
   async function deleteTask(taskId) {
+    setBusyAction(`delete-task-${taskId}`);
     try {
       await api.delete(`/tasks/${taskId}`);
       showMessage("success", "Task deleted.");
       load();
     } catch (err) {
       showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
     }
   }
 
   async function saveTask(task) {
+    setBusyAction(`task-${task.id}`);
     try {
       await api.patch(`/tasks/${task.id}`, {
         title: task.title,
@@ -174,10 +215,29 @@ export default function AdminPanel() {
       load();
     } catch (err) {
       showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function saveTeam(team) {
+    setBusyAction(`team-${team.id}`);
+    try {
+      await api.patch(`/teams/${team.id}`, {
+        name: team.name,
+        description: team.description || ""
+      });
+      showMessage("success", "Team updated.");
+      load();
+    } catch (err) {
+      showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
     }
   }
 
   async function saveAnnouncement(announcement) {
+    setBusyAction(`announcement-${announcement.id}`);
     try {
       await api.patch(`/announcements/${announcement.id}`, {
         title: announcement.title,
@@ -188,31 +248,40 @@ export default function AdminPanel() {
       load();
     } catch (err) {
       showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
     }
   }
 
   async function toggleAnnouncement(announcement) {
+    setBusyAction(`pin-announcement-${announcement.id}`);
     try {
       await api.patch(`/announcements/${announcement.id}`, { is_pinned: !announcement.is_pinned });
       showMessage("success", "Announcement updated.");
       load();
     } catch (err) {
       showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
     }
   }
 
   async function deleteAnnouncement(announcementId) {
+    setBusyAction(`delete-announcement-${announcementId}`);
     try {
       await api.delete(`/announcements/${announcementId}`);
       showMessage("success", "Announcement deleted.");
       load();
     } catch (err) {
       showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
     }
   }
 
   async function awardPoints(event) {
     event.preventDefault();
+    setBusyAction("award-points");
     try {
       await api.post(`/users/${pointAward.user_id}/points`, {
         amount: Number(pointAward.amount),
@@ -223,11 +292,14 @@ export default function AdminPanel() {
       load();
     } catch (err) {
       showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
     }
   }
 
   async function awardBadge(event) {
     event.preventDefault();
+    setBusyAction("award-badge");
     try {
       await api.post("/badges/award", {
         user_id: Number(badgeAward.user_id),
@@ -238,6 +310,8 @@ export default function AdminPanel() {
       load();
     } catch (err) {
       showMessage("error", apiErrorMessage(err));
+    } finally {
+      setBusyAction("");
     }
   }
 
@@ -245,8 +319,10 @@ export default function AdminPanel() {
     <>
       <PageHeader title="Admin Panel" eyebrow="Users, teams, tasks, announcements, and statistics" />
       <Toast message={message} onClose={() => setMessage(null)} />
+      {loadError && <Alert tone="error" className="mb-4">{loadError}</Alert>}
+      {loading && <LoadingPanel label="Loading admin workspace..." />}
 
-      {statistics && (
+      {!loading && statistics && (
         <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Total members" value={statistics.total_members} />
           <StatCard label="Active members" value={statistics.active_members} detail="Submitted in last 7 days" />
@@ -255,8 +331,10 @@ export default function AdminPanel() {
         </section>
       )}
 
+      {!loading && !loadError && (
+      <>
       <section className="grid gap-6 xl:grid-cols-2">
-        <AdminForm title="Create user" onSubmit={createUser}>
+        <AdminForm title="Create user" onSubmit={createUser} busy={busyAction === "create-user"}>
           <input className="input" placeholder="Full name" value={userForm.full_name} onChange={(event) => setUserForm({ ...userForm, full_name: event.target.value })} required />
           <input className="input" placeholder="Email" type="email" value={userForm.email} onChange={(event) => setUserForm({ ...userForm, email: event.target.value })} required />
           <input className="input" placeholder="Password" type="password" value={userForm.password} onChange={(event) => setUserForm({ ...userForm, password: event.target.value })} required minLength={8} maxLength={72} />
@@ -271,7 +349,7 @@ export default function AdminPanel() {
           </div>
         </AdminForm>
 
-        <AdminForm title="Create team" onSubmit={createTeam}>
+        <AdminForm title="Create team" onSubmit={createTeam} busy={busyAction === "create-team"}>
           <input className="input" placeholder="Team name" value={teamForm.name} onChange={(event) => setTeamForm({ ...teamForm, name: event.target.value })} required />
           <textarea className="input min-h-28" placeholder="Description" value={teamForm.description} onChange={(event) => setTeamForm({ ...teamForm, description: event.target.value })} />
         </AdminForm>
@@ -299,7 +377,7 @@ export default function AdminPanel() {
           <textarea className="input min-h-20" placeholder="Attachment URLs, one per line" value={taskForm.attachments} onChange={(event) => setTaskForm({ ...taskForm, attachments: event.target.value })} />
         </AdminForm>
 
-        <AdminForm title="Create announcement" onSubmit={createAnnouncement}>
+        <AdminForm title="Create announcement" onSubmit={createAnnouncement} busy={busyAction === "create-announcement"}>
           <input className="input" placeholder="Title" value={announcementForm.title} onChange={(event) => setAnnouncementForm({ ...announcementForm, title: event.target.value })} required />
           <textarea className="input min-h-32" placeholder="Announcement body" value={announcementForm.body} onChange={(event) => setAnnouncementForm({ ...announcementForm, body: event.target.value })} required />
           <label className="flex items-center gap-2 text-sm">
@@ -312,7 +390,7 @@ export default function AdminPanel() {
           </div>
         </AdminForm>
 
-        <AdminForm title="Award points" onSubmit={awardPoints}>
+        <AdminForm title="Award points" onSubmit={awardPoints} busy={busyAction === "award-points"}>
           <select className="input" value={pointAward.user_id} onChange={(event) => setPointAward({ ...pointAward, user_id: event.target.value })} required>
             <option value="">Choose member</option>
             {users.map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
@@ -321,7 +399,7 @@ export default function AdminPanel() {
           <input className="input" placeholder="Reason" value={pointAward.description} onChange={(event) => setPointAward({ ...pointAward, description: event.target.value })} />
         </AdminForm>
 
-        <AdminForm title="Award badge" onSubmit={awardBadge}>
+        <AdminForm title="Award badge" onSubmit={awardBadge} busy={busyAction === "award-badge"}>
           <select className="input" value={badgeAward.user_id} onChange={(event) => setBadgeAward({ ...badgeAward, user_id: event.target.value })} required>
             <option value="">Choose member</option>
             {users.map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
@@ -370,7 +448,9 @@ export default function AdminPanel() {
                       <input type="checkbox" checked={user.is_active} onChange={(event) => setUsers(users.map((item) => item.id === user.id ? { ...item, is_active: event.target.checked } : item))} />
                     </td>
                     <td className="px-3 py-2">
-                      <button className="btn-secondary" type="button" onClick={() => saveUser(user)}>Save</button>
+                      <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={busyAction === `user-${user.id}`} onClick={() => saveUser(user)}>
+                        {busyAction === `user-${user.id}` ? "Saving..." : "Save"}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -386,16 +466,23 @@ export default function AdminPanel() {
               <div key={team.id} className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="font-semibold">{team.name}</p>
+                    <input className="input font-semibold" value={team.name} onChange={(event) => setTeams(teams.map((item) => item.id === team.id ? { ...item, name: event.target.value } : item))} />
                     <p className="text-sm text-slate-500">{team.member_count} members</p>
                   </div>
-                  <select className="input w-full sm:w-56" defaultValue="" onChange={(event) => event.target.value && promote(team.id, event.target.value)}>
-                    <option value="">Promote leader</option>
-                    {users.map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
-                  </select>
+                  <div className="grid w-full gap-2 sm:w-auto sm:min-w-56">
+                    <select className="input" defaultValue="" disabled={busyAction === `promote-${team.id}`} onChange={(event) => event.target.value && promote(team.id, event.target.value)}>
+                      <option value="">Promote leader</option>
+                      {users.map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
+                    </select>
+                    <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={busyAction === `team-${team.id}`} onClick={() => saveTeam(team)}>
+                      {busyAction === `team-${team.id}` ? "Saving..." : "Save team"}
+                    </button>
+                  </div>
                 </div>
+                <textarea className="input mt-3 min-h-20" value={team.description || ""} onChange={(event) => setTeams(teams.map((item) => item.id === team.id ? { ...item, description: event.target.value } : item))} />
               </div>
             ))}
+            {teams.length === 0 && <p className="text-sm text-slate-500">No teams yet.</p>}
           </div>
         </div>
         <div className="panel p-5">
@@ -408,8 +495,12 @@ export default function AdminPanel() {
                   <input className="input" type="number" min="1" value={task.points} onChange={(event) => setTasks(tasks.map((item) => item.id === task.id ? { ...item, points: event.target.value } : item))} />
                   <input className="input" type="datetime-local" value={toDateTimeLocal(task.deadline)} onChange={(event) => setTasks(tasks.map((item) => item.id === task.id ? { ...item, deadline: event.target.value } : item))} />
                   <div className="flex gap-2">
-                    <button className="btn-secondary" type="button" onClick={() => saveTask(task)}>Save</button>
-                    <button className="btn-secondary" type="button" onClick={() => deleteTask(task.id)}>Delete</button>
+                    <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={busyAction === `task-${task.id}`} onClick={() => saveTask(task)}>
+                      {busyAction === `task-${task.id}` ? "Saving..." : "Save"}
+                    </button>
+                    <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={busyAction === `delete-task-${task.id}`} onClick={() => deleteTask(task.id)}>
+                      {busyAction === `delete-task-${task.id}` ? "Deleting..." : "Delete"}
+                    </button>
                   </div>
                 </div>
                 <label className="mt-3 flex items-center gap-2 text-sm">
@@ -429,9 +520,13 @@ export default function AdminPanel() {
                 <input className="input" value={announcement.title} onChange={(event) => setAnnouncements(announcements.map((item) => item.id === announcement.id ? { ...item, title: event.target.value } : item))} />
                 <textarea className="input mt-3 min-h-20" value={announcement.body} onChange={(event) => setAnnouncements(announcements.map((item) => item.id === announcement.id ? { ...item, body: event.target.value } : item))} />
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button className="btn-secondary" type="button" onClick={() => saveAnnouncement(announcement)}>Save</button>
-                  <button className="btn-secondary" type="button" onClick={() => toggleAnnouncement(announcement)}>{announcement.is_pinned ? "Unpin" : "Pin"}</button>
-                  <button className="btn-secondary" type="button" onClick={() => deleteAnnouncement(announcement.id)}>Delete</button>
+                  <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={busyAction === `announcement-${announcement.id}`} onClick={() => saveAnnouncement(announcement)}>
+                    {busyAction === `announcement-${announcement.id}` ? "Saving..." : "Save"}
+                  </button>
+                  <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={busyAction === `pin-announcement-${announcement.id}`} onClick={() => toggleAnnouncement(announcement)}>{announcement.is_pinned ? "Unpin" : "Pin"}</button>
+                  <button className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={busyAction === `delete-announcement-${announcement.id}`} onClick={() => deleteAnnouncement(announcement.id)}>
+                    {busyAction === `delete-announcement-${announcement.id}` ? "Deleting..." : "Delete"}
+                  </button>
                 </div>
               </div>
             ))}
@@ -450,6 +545,8 @@ export default function AdminPanel() {
           </div>
         </div>
       </section>
+      </>
+      )}
     </>
   );
 }

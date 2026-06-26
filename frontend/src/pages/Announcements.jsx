@@ -1,20 +1,33 @@
 import { useEffect, useState } from "react";
 
+import Alert from "../components/Alert.jsx";
+import EmptyState from "../components/EmptyState.jsx";
+import LoadingPanel from "../components/LoadingPanel.jsx";
 import PageHeader from "../components/PageHeader.jsx";
-import { api } from "../services/api";
+import { api, apiErrorMessage } from "../services/api";
 
 export default function Announcements() {
   const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get("/announcements").then(({ data }) => setAnnouncements(data));
+    api.get("/announcements")
+      .then(({ data }) => setAnnouncements(data))
+      .catch((err) => setError(apiErrorMessage(err)))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
     <>
       <PageHeader title="Announcements" eyebrow="Pinned updates, schedules, and community news" />
+      {error && <Alert tone="error" className="mb-4">{error}</Alert>}
+      {loading && <LoadingPanel label="Loading announcements..." />}
+      {!loading && !error && announcements.length === 0 && (
+        <EmptyState title="No active announcements" body="Pinned updates and scheduled community messages will appear here." />
+      )}
       <div className="grid gap-4 lg:grid-cols-2">
-        {announcements.map((item) => (
+        {!loading && !error && announcements.map((item) => (
           <article key={item.id} className="panel p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -29,8 +42,6 @@ export default function Announcements() {
           </article>
         ))}
       </div>
-      {announcements.length === 0 && <div className="panel p-6 text-slate-500">No announcements are active right now.</div>}
     </>
   );
 }
-

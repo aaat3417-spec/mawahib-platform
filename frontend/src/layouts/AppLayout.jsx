@@ -97,7 +97,7 @@ export default function AppLayout() {
             </div>
             <div className="flex items-center gap-2 overflow-x-auto">
               <button
-                className="hidden rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 sm:inline-flex"
+                className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 sm:text-sm"
                 type="button"
                 onClick={markAllRead}
                 title="Mark notifications as read"
